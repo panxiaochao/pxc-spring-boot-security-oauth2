@@ -1,7 +1,7 @@
 package io.github.panxiaochao.security.core.authorization.password;
 
-import io.github.panxiaochao.security.core.endpoint.OAuth2EndpointUtils;
 import io.github.panxiaochao.security.core.endpoint.CusOAuth2ParameterNames;
+import io.github.panxiaochao.security.core.endpoint.OAuth2EndpointUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.security.core.Authentication;
@@ -68,15 +68,6 @@ public class OAuth2ResourceOwnerPasswordAuthenticationConverter implements Authe
             OAuth2EndpointUtils.throwError(
                     OAuth2ErrorCodes.INVALID_REQUEST,
                     CusOAuth2ParameterNames.PASSWORD,
-                    OAuth2EndpointUtils.ACCESS_TOKEN_REQUEST_ERROR_URI);
-        }
-
-        // identityType (REQUIRED, CUSTOM PARAMS)
-        String identityType = parameters.getFirst(CusOAuth2ParameterNames.IDENTITY_TYPE);
-        if (!StringUtils.hasText(identityType) || parameters.get(CusOAuth2ParameterNames.IDENTITY_TYPE).size() != 1) {
-            OAuth2EndpointUtils.throwError(
-                    OAuth2ErrorCodes.INVALID_REQUEST,
-                    CusOAuth2ParameterNames.IDENTITY_TYPE,
                     OAuth2EndpointUtils.ACCESS_TOKEN_REQUEST_ERROR_URI);
         }
 

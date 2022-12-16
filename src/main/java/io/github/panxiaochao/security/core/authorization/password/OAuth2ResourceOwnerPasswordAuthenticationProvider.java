@@ -120,10 +120,7 @@ public class OAuth2ResourceOwnerPasswordAuthenticationProvider implements Authen
                     "The token generator failed to generate the access token.", ERROR_URI);
             throw new OAuth2AuthenticationException(error);
         }
-
-        if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("Generated access token");
-        }
+        LOGGER.info("Generated access token");
 
         OAuth2AccessToken accessToken = new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER,
                 generatedAccessToken.getTokenValue(), generatedAccessToken.getIssuedAt(),
@@ -221,7 +218,7 @@ public class OAuth2ResourceOwnerPasswordAuthenticationProvider implements Authen
                         AuthorizationGrantType.PASSWORD,
                         userDetails,
                         null,
-                        null
+                        requestAdditionalParameters
 
                 );
         resourceOwnerPasswordAuthenticationToken.setDetails(details);

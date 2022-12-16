@@ -1,5 +1,6 @@
 package io.github.panxiaochao.security.config;
 
+import io.github.panxiaochao.security.constant.SecurityConstants;
 import io.github.panxiaochao.security.crypto.PasswordEncoderFactory;
 import io.github.panxiaochao.security.service.UserDetailServiceImpl;
 import org.springframework.context.annotation.Bean;
@@ -63,14 +64,14 @@ public class SecurityConfig {
                 // 禁用缓存
                 .headers().cacheControl();
         // 过滤请求
-        // httpSecurity.authorizeHttpRequests(authorize ->
-        //         authorize
-        //                 // 只放行OAuth相关接口
-        //                 //.antMatchers(AppConstant.OAUTH2_WHITELIST).permitAll()
-        //                 // 除上面外的所有请求全部需要鉴权认证
-        //                 .anyRequest().authenticated()
-        //
-        // );
+        httpSecurity.authorizeHttpRequests(authorize ->
+                authorize
+                        // 只放行OAuth相关接口
+                        .antMatchers(SecurityConstants.TOKEN_ENDPOINT).permitAll()
+                        // 除上面外的所有请求全部需要鉴权认证
+                        .anyRequest().authenticated()
+
+        );
         return httpSecurity.build();
     }
 }

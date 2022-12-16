@@ -5,10 +5,11 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
+import io.github.panxiaochao.security.constant.SecurityConstants;
 import io.github.panxiaochao.security.core.authorization.password.OAuth2ResourceOwnerPasswordAuthenticationConverter;
+import io.github.panxiaochao.security.core.authorization.password.OAuth2ResourceOwnerPasswordAuthenticationProvider;
 import io.github.panxiaochao.security.handler.CustomAccessDeniedHandler;
 import io.github.panxiaochao.security.handler.CustomAuthenticationEntryPoint;
-import io.github.panxiaochao.security.service.UserDetailServiceImpl;
 import io.github.panxiaochao.security.utils.KeyGeneratorUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -17,6 +18,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
@@ -40,10 +42,10 @@ import org.springframework.security.oauth2.server.authorization.settings.TokenSe
 import org.springframework.security.oauth2.server.authorization.token.*;
 import org.springframework.security.oauth2.server.authorization.web.authentication.DelegatingAuthenticationConverter;
 import org.springframework.security.oauth2.server.authorization.web.authentication.OAuth2AuthorizationCodeAuthenticationConverter;
+import org.springframework.security.oauth2.server.authorization.web.authentication.OAuth2ClientCredentialsAuthenticationConverter;
 import org.springframework.security.oauth2.server.authorization.web.authentication.OAuth2RefreshTokenAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationConverter;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
 import javax.annotation.Resource;
@@ -65,7 +67,6 @@ import java.util.*;
 public class AuthorizationServerConfig {
     private static final Logger LOGGER = LogManager.getLogger(AuthorizationServerConfig.class);
 
-
     /**
      * CLIENT_ID
      */
@@ -81,14 +82,11 @@ public class AuthorizationServerConfig {
      */
     private static final String CLIENT_SERVER = "client_server";
 
-    /**
-     * 自定义 UserDetailsService
-     */
-    @Resource
-    private UserDetailServiceImpl userDetailService;
-
     @Resource
     private PasswordEncoder passwordEncoder;
+
+    @Resource
+    private OAuth2ResourceOwnerPasswordAuthenticationProvider resourceOwnerPasswordAuthenticationProvider;
 
     @Bean
     public JdbcTemplate jdbcTemplate(DataSource dataSource) {
@@ -104,13 +102,13 @@ public class AuthorizationServerConfig {
     @Bean
     public AuthorizationServerSettings authorizationServerSettings() {
         return AuthorizationServerSettings.builder()
-                .authorizationEndpoint("/oauth2/v1/authorize")
-                .tokenEndpoint("/oauth2/v1/token")
-                .tokenIntrospectionEndpoint("/oauth2/v1/introspect")
-                .tokenRevocationEndpoint("/oauth2/v1/revoke")
-                .jwkSetEndpoint("/oauth2/v1/jwks")
-                .oidcUserInfoEndpoint("/connect/v1/userinfo")
-                .oidcClientRegistrationEndpoint("/connect/v1/register")
+                // .authorizationEndpoint("/oauth2/v1/authorize")
+                .tokenEndpoint(SecurityConstants.TOKEN_ENDPOINT)
+                // .tokenIntrospectionEndpoint("/oauth2/v1/introspect")
+                // .tokenRevocationEndpoint("/oauth2/v1/revoke")
+                // .jwkSetEndpoint("/oauth2/v1/jwks")
+                // .oidcUserInfoEndpoint("/connect/v1/userinfo")
+                // .oidcClientRegistrationEndpoint("/connect/v1/register")
                 .issuer("http://localhost:18000/")
                 .build();
     }
@@ -127,35 +125,39 @@ public class AuthorizationServerConfig {
         List<AuthenticationConverter> authenticationConverters = Arrays.asList(
                 new OAuth2AuthorizationCodeAuthenticationConverter(),
                 new OAuth2RefreshTokenAuthenticationConverter(),
+                new OAuth2ClientCredentialsAuthenticationConverter(),
                 new OAuth2ResourceOwnerPasswordAuthenticationConverter());
-        http.apply(authorizationServerConfigurer.tokenEndpoint((tokenEndpoint) ->
-                tokenEndpoint.accessTokenRequestConverter(new DelegatingAuthenticationConverter(authenticationConverters))));
-
-        RequestMatcher endpointsMatcher = authorizationServerConfigurer.getEndpointsMatcher();
-        RequestMatcher passwordGrantEndPointMatcher = new AntPathRequestMatcher("/oauth2/v1/token");
+        authorizationServerConfigurer
+                .tokenEndpoint(tokenEndpoint ->
+                        tokenEndpoint.accessTokenRequestConverter(new DelegatingAuthenticationConverter(authenticationConverters)));
         //
-        http.requestMatchers().requestMatchers(endpointsMatcher, passwordGrantEndPointMatcher)
-                .and().authorizeRequests()
-                .antMatchers("/oauth2/v1/token").permitAll()
-                .anyRequest().authenticated()
-                .and().csrf().disable()
+        RequestMatcher endpointsMatcher = authorizationServerConfigurer.getEndpointsMatcher();
+        http
+                .requestMatcher(endpointsMatcher)
+                .authorizeRequests(authorizeRequests -> authorizeRequests.anyRequest().authenticated());
+        //
+        http
+                .cors().and()
+                .csrf(csrf -> csrf.ignoringRequestMatchers(endpointsMatcher).disable())
                 .headers().frameOptions().disable().and()
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS).and()
                 .headers().cacheControl();
-        http.apply(authorizationServerConfigurer);
+        //
+        http.apply(authorizationServerConfigurer).oidc(Customizer.withDefaults());
+        ;
         // 授权异常处理
         http.exceptionHandling(exception -> {
             exception
                     .accessDeniedHandler(new CustomAccessDeniedHandler())
                     .authenticationEntryPoint(new CustomAuthenticationEntryPoint());
         });
-
+        //
+        http.authenticationProvider(resourceOwnerPasswordAuthenticationProvider);
         return http.build();
     }
 
     @Bean
-    public OAuth2TokenGenerator<? extends OAuth2Token> tokenGenerator(JWKSource<SecurityContext> jwkSource) {
-        JwtEncoder jwtEncoder = new NimbusJwtEncoder(jwkSource);
+    public OAuth2TokenGenerator<? extends OAuth2Token> tokenGenerator(JwtEncoder jwtEncoder) {
         JwtGenerator jwtGenerator = new JwtGenerator(jwtEncoder);
         OAuth2AccessTokenGenerator accessTokenGenerator = new OAuth2AccessTokenGenerator();
         OAuth2RefreshTokenGenerator refreshTokenGenerator = new OAuth2RefreshTokenGenerator();
@@ -168,12 +170,12 @@ public class AuthorizationServerConfig {
      * @return
      */
     @Bean
-    public RegisteredClientRepository registeredClientRepository(JdbcTemplate jdbcTemplate, TokenSettings tokenSettings, ClientSettings clientSettings) {
+    public RegisteredClientRepository registeredClientRepository(JdbcTemplate jdbcTemplate) {
         JdbcRegisteredClientRepository registeredClientRepository = new JdbcRegisteredClientRepository(jdbcTemplate);
         // 默认查询新建clientId
         RegisteredClient registeredClient = registeredClientRepository.findByClientId(CLIENT_ID);
         if (Objects.isNull(registeredClient)) {
-            registeredClient = createRegisteredClient(tokenSettings, clientSettings);
+            registeredClient = createRegisteredClient(tokenSettings(), clientSettings());
             registeredClientRepository.save(registeredClient);
         }
         return registeredClientRepository;
@@ -254,11 +256,19 @@ public class AuthorizationServerConfig {
     }
 
     /**
+     * @param jwkSource
+     * @return
+     */
+    @Bean
+    public JwtEncoder jwtEncoder(JWKSource<SecurityContext> jwkSource) {
+        return new NimbusJwtEncoder(jwkSource);
+    }
+
+    /**
      * JWT（Json Web Token）的配置项：TTL、是否复用refreshToken等等
      *
      * @return TokenSettings
      */
-    @Bean
     public TokenSettings tokenSettings() {
         return TokenSettings.builder()
                 // 令牌存活时间：2小时
@@ -276,7 +286,6 @@ public class AuthorizationServerConfig {
      *
      * @return ClientSettings
      */
-    @Bean
     public ClientSettings clientSettings() {
         return ClientSettings.builder()
                 // 是否需要用户授权确认
