@@ -1,0 +1,44 @@
+# server
+server:
+  port: 18000
+  servlet:
+    context-path: /
+
+spring:
+  # 关闭使用thymeleaf
+  thymeleaf:
+    enabled: false
+  application:
+    name: security-oauth2-server
+  main:
+    allow-circular-references: true
+    allow-bean-definition-overriding: true
+
+#数据库连接配置
+pxc:
+  datasource:
+    dynamic:
+      master:
+        url: jdbc:mysql://localhost:3306/oauth2?rewriteBatchedStatements=true&useUnicode=true&characterEncoding=utf-8&useSSL=false&allowMultiQueries=true&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
+        username: root
+        password: root123456
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        type: com.zaxxer.hikari.HikariDataSource
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 10
+      idle-timeout: 60000
+      max-lifetime: 60000
+      connection-timeout: 30000
+      pool-name: Security-Oauth2-HikariPool
+
+# mybatis-plus 配置
+mybatis-plus:
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+  configuration:
+    map-underscore-to-camel-case: true
+    # 开发测试时使用
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl

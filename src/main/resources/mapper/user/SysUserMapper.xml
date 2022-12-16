@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.github.panxiaochao.web.sys.user.mapper.SysUserMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="io.github.panxiaochao.web.sys.user.entity.SysUser">
+        <id column="id" property="id"/>
+        <result column="real_name" property="realName"/>
+        <result column="nick_name" property="nickName"/>
+        <result column="id_card" property="idCard"/>
+        <result column="avatar" property="avatar"/>
+        <result column="sex" property="sex"/>
+        <result column="address" property="address"/>
+        <result column="email" property="email"/>
+        <result column="mobile" property="mobile"/>
+        <result column="tel" property="tel"/>
+        <result column="fax" property="fax"/>
+        <result column="sort" property="sort"/>
+        <result column="remark" property="remark"/>
+        <result column="status" property="status"/>
+        <result column="skins" property="skins"/>
+        <result column="org_id" property="orgId"/>
+        <result column="org_code" property="orgCode"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="login_nums" property="loginNums"/>
+        <result column="login_error_nums" property="loginErrorNums"/>
+        <result column="login_time" property="loginTime"/>
+        <result column="expire_time" property="expireTime"/>
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id
+        , real_name, nick_name, id_card, avatar, sex, address, email, mobile, tel, fax, sort, remark, status, skins, org_id, org_code, create_time, update_time, login_nums, login_error_nums, login_time, expire_time
+    </sql>
+
+</mapper>

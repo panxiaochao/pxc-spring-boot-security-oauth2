@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.github.panxiaochao.web.sys.user.mapper.SysUserAuthsMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="io.github.panxiaochao.web.sys.user.entity.SysUserAuths">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="identity_type" property="identityType"/>
+        <result column="identifier" property="identifier"/>
+        <result column="credential" property="credential"/>
+        <result column="verified" property="verified"/>
+        <result column="expire_time" property="expireTime"/>
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id
+        , user_id, identity_type, identifier, credential, verified, expire_time
+    </sql>
+
+</mapper>
