@@ -3,6 +3,8 @@ package io.github.panxiaochao.security.config;
 import io.github.panxiaochao.security.constant.SecurityConstants;
 import io.github.panxiaochao.security.crypto.PasswordEncoderFactory;
 import io.github.panxiaochao.security.service.UserDetailServiceImpl;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -22,6 +24,8 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration(proxyBeanMethods = false)
 @EnableWebSecurity
 public class SecurityConfig {
+
+    private static final Logger LOGGER = LogManager.getLogger(SecurityConfig.class);
 
     /**
      * 自定义 UserDetailsService
@@ -49,8 +53,8 @@ public class SecurityConfig {
      * @throws Exception
      */
     @Bean
-    public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity httpSecurity)
-            throws Exception {
+    public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity httpSecurity) throws Exception {
+        LOGGER.info(">>> 自定义 DefaultSecurityFilterChain 配置");
         // 基础配置
         httpSecurity
                 // cors
@@ -70,7 +74,6 @@ public class SecurityConfig {
                         .antMatchers(SecurityConstants.TOKEN_ENDPOINT).permitAll()
                         // 除上面外的所有请求全部需要鉴权认证
                         .anyRequest().authenticated()
-
         );
         return httpSecurity.build();
     }

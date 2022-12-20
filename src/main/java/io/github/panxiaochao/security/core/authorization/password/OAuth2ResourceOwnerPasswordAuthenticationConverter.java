@@ -24,7 +24,7 @@ import java.util.*;
  * @author Lypxc
  * @since 2022-12-14
  */
-public class OAuth2ResourceOwnerPasswordAuthenticationConverter implements AuthenticationConverter {
+public final class OAuth2ResourceOwnerPasswordAuthenticationConverter implements AuthenticationConverter {
 
     private static final Logger LOGGER = LogManager.getLogger(OAuth2ResourceOwnerPasswordAuthenticationConverter.class);
 

@@ -18,7 +18,7 @@ import java.util.*;
  * @since 2022-12-14
  */
 @Getter
-public class OAuth2ResourceOwnerPasswordAuthenticationToken extends AbstractAuthenticationToken {
+public final class OAuth2ResourceOwnerPasswordAuthenticationToken extends AbstractAuthenticationToken {
 
     private static final Logger LOGGER = LogManager.getLogger(OAuth2ResourceOwnerPasswordAuthenticationToken.class);
 

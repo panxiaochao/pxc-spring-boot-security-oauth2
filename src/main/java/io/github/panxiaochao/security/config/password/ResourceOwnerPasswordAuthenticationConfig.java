@@ -2,6 +2,8 @@ package io.github.panxiaochao.security.config.password;
 
 import io.github.panxiaochao.security.core.authorization.password.OAuth2ResourceOwnerPasswordAuthenticationProvider;
 import io.github.panxiaochao.security.service.UserDetailServiceImpl;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,6 +23,8 @@ import javax.annotation.Resource;
 @Configuration
 public class ResourceOwnerPasswordAuthenticationConfig {
 
+    private static final Logger LOGGER = LogManager.getLogger(ResourceOwnerPasswordAuthenticationConfig.class);
+
     @Resource
     private UserDetailServiceImpl userDetailService;
 
@@ -35,6 +39,7 @@ public class ResourceOwnerPasswordAuthenticationConfig {
 
     @Bean
     public OAuth2ResourceOwnerPasswordAuthenticationProvider resourceOwnerPasswordAuthenticationProvider() {
+        LOGGER.info(">>> 自定义 AuthorizationServerSettings 配置");
         return new OAuth2ResourceOwnerPasswordAuthenticationProvider(userDetailService, passwordEncoder, authorizationService, tokenGenerator);
     }
 }

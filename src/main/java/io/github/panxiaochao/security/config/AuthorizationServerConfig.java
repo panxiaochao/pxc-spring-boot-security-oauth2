@@ -40,12 +40,7 @@ import org.springframework.security.oauth2.server.authorization.settings.ClientS
 import org.springframework.security.oauth2.server.authorization.settings.OAuth2TokenFormat;
 import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
 import org.springframework.security.oauth2.server.authorization.token.*;
-import org.springframework.security.oauth2.server.authorization.web.authentication.DelegatingAuthenticationConverter;
-import org.springframework.security.oauth2.server.authorization.web.authentication.OAuth2AuthorizationCodeAuthenticationConverter;
-import org.springframework.security.oauth2.server.authorization.web.authentication.OAuth2ClientCredentialsAuthenticationConverter;
-import org.springframework.security.oauth2.server.authorization.web.authentication.OAuth2RefreshTokenAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.AuthenticationConverter;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
 import javax.annotation.Resource;
@@ -54,7 +49,9 @@ import java.security.KeyPair;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
-import java.util.*;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * {@code AuthorizationServerConfig}
@@ -101,6 +98,7 @@ public class AuthorizationServerConfig {
      */
     @Bean
     public AuthorizationServerSettings authorizationServerSettings() {
+        LOGGER.info(">>> 自定义 AuthorizationServerSettings 配置");
         return AuthorizationServerSettings.builder()
                 // .authorizationEndpoint("/oauth2/v1/authorize")
                 .tokenEndpoint(SecurityConstants.TOKEN_ENDPOINT)
@@ -121,15 +119,14 @@ public class AuthorizationServerConfig {
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
+        LOGGER.info(">>> 自定义 AuthorizationServerSecurityFilterChain 配置");
         OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer();
-        List<AuthenticationConverter> authenticationConverters = Arrays.asList(
-                new OAuth2AuthorizationCodeAuthenticationConverter(),
-                new OAuth2RefreshTokenAuthenticationConverter(),
-                new OAuth2ClientCredentialsAuthenticationConverter(),
-                new OAuth2ResourceOwnerPasswordAuthenticationConverter());
-        authorizationServerConfigurer
-                .tokenEndpoint(tokenEndpoint ->
-                        tokenEndpoint.accessTokenRequestConverter(new DelegatingAuthenticationConverter(authenticationConverters)));
+        // custom converter and provider
+        authorizationServerConfigurer.tokenEndpoint(tokenEndpoint -> {
+                    tokenEndpoint.accessTokenRequestConverter(new OAuth2ResourceOwnerPasswordAuthenticationConverter());
+                    tokenEndpoint.authenticationProvider(resourceOwnerPasswordAuthenticationProvider);
+                }
+        );
         //
         RequestMatcher endpointsMatcher = authorizationServerConfigurer.getEndpointsMatcher();
         http
@@ -144,20 +141,18 @@ public class AuthorizationServerConfig {
                 .headers().cacheControl();
         //
         http.apply(authorizationServerConfigurer).oidc(Customizer.withDefaults());
-        ;
         // 授权异常处理
         http.exceptionHandling(exception -> {
             exception
                     .accessDeniedHandler(new CustomAccessDeniedHandler())
                     .authenticationEntryPoint(new CustomAuthenticationEntryPoint());
         });
-        //
-        http.authenticationProvider(resourceOwnerPasswordAuthenticationProvider);
         return http.build();
     }
 
     @Bean
     public OAuth2TokenGenerator<? extends OAuth2Token> tokenGenerator(JwtEncoder jwtEncoder) {
+        LOGGER.info(">>> 自定义 OAuth2TokenGenerator 配置");
         JwtGenerator jwtGenerator = new JwtGenerator(jwtEncoder);
         OAuth2AccessTokenGenerator accessTokenGenerator = new OAuth2AccessTokenGenerator();
         OAuth2RefreshTokenGenerator refreshTokenGenerator = new OAuth2RefreshTokenGenerator();
@@ -171,11 +166,12 @@ public class AuthorizationServerConfig {
      */
     @Bean
     public RegisteredClientRepository registeredClientRepository(JdbcTemplate jdbcTemplate) {
+        LOGGER.info(">>> 自定义 RegisteredClientRepository 配置");
         JdbcRegisteredClientRepository registeredClientRepository = new JdbcRegisteredClientRepository(jdbcTemplate);
         // 默认查询新建clientId
         RegisteredClient registeredClient = registeredClientRepository.findByClientId(CLIENT_ID);
         if (Objects.isNull(registeredClient)) {
-            registeredClient = createRegisteredClient(tokenSettings(), clientSettings());
+            registeredClient = createRegisteredClient();
             registeredClientRepository.save(registeredClient);
         }
         return registeredClientRepository;
@@ -186,22 +182,21 @@ public class AuthorizationServerConfig {
      *
      * @return
      */
-    private RegisteredClient createRegisteredClient(TokenSettings tokenSettings, ClientSettings clientSettings) {
+    private RegisteredClient createRegisteredClient() {
         return RegisteredClient
                 .withId(UUID.randomUUID().toString())
                 .clientId(CLIENT_ID)
                 .clientSecret(passwordEncoder.encode(CLIENT_SECRET))
                 .clientName(CLIENT_SERVER)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
-                //.authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-                // .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
                 .authorizationGrantType(AuthorizationGrantType.PASSWORD)
                 .authorizationGrantType(AuthorizationGrantType.JWT_BEARER)
-                .scope(OidcScopes.OPENID).scope(OidcScopes.PROFILE)
+                .scope(OidcScopes.OPENID)
+                .scope(OidcScopes.PROFILE)
                 .scope("all")
-                .tokenSettings(tokenSettings)
-                .clientSettings(clientSettings)
+                .tokenSettings(tokenSettings())
+                .clientSettings(clientSettings())
                 .build();
     }
 

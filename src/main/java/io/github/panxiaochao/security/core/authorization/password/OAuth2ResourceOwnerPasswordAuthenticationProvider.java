@@ -40,7 +40,7 @@ import java.util.*;
  * @since 2022-12-14
  */
 @Getter
-public class OAuth2ResourceOwnerPasswordAuthenticationProvider implements AuthenticationProvider {
+public final class OAuth2ResourceOwnerPasswordAuthenticationProvider implements AuthenticationProvider {
 
     private static final Logger LOGGER = LogManager.getLogger(OAuth2ResourceOwnerPasswordAuthenticationProvider.class);
 
