@@ -33,15 +33,6 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setHeader("Content-Type", "application/json;charset=UTF-8");
         PrintWriter out = response.getWriter();
-        // if (cause instanceof InvalidTokenException) {
-        //    out.write(JacksonUtils
-        //            .toString(ResultResponse.error(HttpStatus.FORBIDDEN.value(), "OAUTH_TOKEN_ILLEGAL")));
-        //
-        //} else {
-        //    out.write(JacksonUtils
-        //            .toString(ResultResponse.error(HttpStatus.UNAUTHORIZED.value(), "OAUTH_TOKEN_MISSING")));
-        //}
-
         out.write(JacksonUtils
                 .toString(ResultResponse.error(HttpStatus.UNAUTHORIZED.value(), "OAUTH_TOKEN_ILLEGAL")));
         out.flush();

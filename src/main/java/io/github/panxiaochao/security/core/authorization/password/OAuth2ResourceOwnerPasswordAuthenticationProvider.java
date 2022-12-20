@@ -1,12 +1,12 @@
 package io.github.panxiaochao.security.core.authorization.password;
 
 import io.github.panxiaochao.security.core.endpoint.CusOAuth2ParameterNames;
+import io.github.panxiaochao.security.core.endpoint.OAuth2EndpointUtils;
 import io.github.panxiaochao.security.service.UserDetailServiceImpl;
 import lombok.Getter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -85,25 +85,23 @@ public final class OAuth2ResourceOwnerPasswordAuthenticationProvider implements 
                 getAuthenticatedClientElseThrowInvalidClient(resourceOwnerPasswordAuthenticationToken);
         RegisteredClient registeredClient = clientPrincipal.getRegisteredClient();
         if (Objects.isNull(registeredClient)) {
-            OAuth2Error error = new OAuth2Error(OAuth2ErrorCodes.SERVER_ERROR, "The RegisteredClient is null.", null);
-            throw new OAuth2AuthenticationException(error);
+            OAuth2EndpointUtils.throwError(OAuth2ErrorCodes.SERVER_ERROR, "The RegisteredClient is null.", null);
         } else if (!registeredClient.getAuthorizationGrantTypes().contains(AuthorizationGrantType.PASSWORD)) {
-            throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
+            OAuth2EndpointUtils.throwError(OAuth2ErrorCodes.INVALID_GRANT, "The Invalid Grant.", null);
         }
-        LOGGER.info("Retrieved authorization with password");
-
-        Authentication principal = authenticatePassword(requestAdditionalParameters, clientPrincipal.getDetails());
-
+        LOGGER.info("Retrieved registered client");
+        Authentication principal = authenticatePassword(requestAdditionalParameters, requestedScopes, clientPrincipal.getDetails());
+        LOGGER.info("Retrieved Authentication principal success");
         Set<String> authorizedScopes = Collections.emptySet();
         if (!CollectionUtils.isEmpty(requestedScopes)) {
             for (String requestedScope : requestedScopes) {
-                if (!registeredClient.getScopes().contains(requestedScope)) {
-                    throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_SCOPE);
+                if (Objects.nonNull(registeredClient.getScopes()) && !registeredClient.getScopes().contains(requestedScope)) {
+                    OAuth2EndpointUtils.throwError(OAuth2ErrorCodes.INVALID_SCOPE, "The Invalid Scope.", null);
                 }
             }
             authorizedScopes = new LinkedHashSet<>(requestedScopes);
         }
-
+        // DefaultOAuth2TokenContext.Builder
         DefaultOAuth2TokenContext.Builder tokenContextBuilder = DefaultOAuth2TokenContext.builder()
                 .registeredClient(registeredClient)
                 .principal(principal)
@@ -111,124 +109,117 @@ public final class OAuth2ResourceOwnerPasswordAuthenticationProvider implements 
                 .authorizedScopes(authorizedScopes)
                 .authorizationGrantType(AuthorizationGrantType.PASSWORD)
                 .authorizationGrant(resourceOwnerPasswordAuthenticationToken);
-
-        // Access token
-        OAuth2TokenContext tokenContext = tokenContextBuilder.tokenType(OAuth2TokenType.ACCESS_TOKEN).build();
-        OAuth2Token generatedAccessToken = this.tokenGenerator.generate(tokenContext);
-        if (generatedAccessToken == null) {
-            OAuth2Error error = new OAuth2Error(OAuth2ErrorCodes.SERVER_ERROR,
-                    "The token generator failed to generate the access token.", ERROR_URI);
-            throw new OAuth2AuthenticationException(error);
-        }
-        LOGGER.info("Generated access token");
-
-        OAuth2AccessToken accessToken = new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER,
-                generatedAccessToken.getTokenValue(), generatedAccessToken.getIssuedAt(),
-                generatedAccessToken.getExpiresAt(), tokenContext.getAuthorizedScopes());
-
+        // OAuth2Authorization.Builder
         OAuth2Authorization.Builder authorizationBuilder = OAuth2Authorization.withRegisteredClient(registeredClient)
-                .id(UUID.randomUUID().toString())
                 .principalName(clientPrincipal.getName())
                 .authorizationGrantType(AuthorizationGrantType.PASSWORD)
                 .authorizedScopes(authorizedScopes);
+        // Access token
+        OAuth2AccessToken accessToken = generateAccessToken(tokenContextBuilder, authorizationBuilder);
+        // Refresh token
+        OAuth2RefreshToken oauth2RefreshToken = generateRefreshToken(registeredClient, clientPrincipal, tokenContextBuilder, authorizationBuilder);
+        // ID token
+        Map<String, Object> additionalParameters = Collections.emptyMap();
+        if (requestedScopes.contains(OidcScopes.OPENID)) {
+            OidcIdToken idToken = generateOidcIdToken(tokenContextBuilder, authorizationBuilder);
+            if (Objects.nonNull(idToken)) {
+                additionalParameters = new HashMap<>();
+                additionalParameters.put(OidcParameterNames.ID_TOKEN, idToken.getTokenValue());
+            }
+        }
+        // OAuth2Authorization authorization
+        OAuth2Authorization authorization = authorizationBuilder.build();
+        this.authorizationService.save(authorization);
+        LOGGER.info("Saved authorization");
+        return new OAuth2AccessTokenAuthenticationToken(registeredClient, clientPrincipal, accessToken, oauth2RefreshToken, additionalParameters);
+    }
+
+    private OAuth2AccessToken generateAccessToken(DefaultOAuth2TokenContext.Builder tokenContextBuilder,
+                                                  OAuth2Authorization.Builder authorizationBuilder) {
+        OAuth2TokenContext tokenContext = tokenContextBuilder.tokenType(OAuth2TokenType.ACCESS_TOKEN).build();
+        OAuth2Token generatedAccessToken = this.tokenGenerator.generate(tokenContext);
+        if (generatedAccessToken == null) {
+            OAuth2EndpointUtils.throwError(OAuth2ErrorCodes.SERVER_ERROR,
+                    "The token generator failed to generate the access token.", ERROR_URI);
+        }
+        OAuth2AccessToken accessToken = new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER,
+                generatedAccessToken.getTokenValue(), generatedAccessToken.getIssuedAt(),
+                generatedAccessToken.getExpiresAt(), tokenContext.getAuthorizedScopes());
         if (generatedAccessToken instanceof ClaimAccessor) {
             authorizationBuilder.token(accessToken, (metadata) ->
                     metadata.put(OAuth2Authorization.Token.CLAIMS_METADATA_NAME, ((ClaimAccessor) generatedAccessToken).getClaims()));
         } else {
             authorizationBuilder.accessToken(accessToken);
         }
+        LOGGER.info("Generated access token");
+        return accessToken;
+    }
 
-        // Refresh token
+    private OAuth2RefreshToken generateRefreshToken(RegisteredClient registeredClient,
+                                                    OAuth2ClientAuthenticationToken clientPrincipal,
+                                                    DefaultOAuth2TokenContext.Builder tokenContextBuilder,
+                                                    OAuth2Authorization.Builder authorizationBuilder) {
         OAuth2RefreshToken oauth2RefreshToken = null;
         if (registeredClient.getAuthorizationGrantTypes().contains(AuthorizationGrantType.REFRESH_TOKEN) &&
-                // Do not issue refresh token to public client
                 !clientPrincipal.getClientAuthenticationMethod().equals(ClientAuthenticationMethod.NONE)) {
-
-            tokenContext = tokenContextBuilder.tokenType(OAuth2TokenType.REFRESH_TOKEN).build();
+            OAuth2TokenContext tokenContext = tokenContextBuilder.tokenType(OAuth2TokenType.REFRESH_TOKEN).build();
             OAuth2Token generatedRefreshToken = tokenGenerator.generate(tokenContext);
             if (!(generatedRefreshToken instanceof OAuth2RefreshToken)) {
-                OAuth2Error error = new OAuth2Error(OAuth2ErrorCodes.SERVER_ERROR,
+                OAuth2EndpointUtils.throwError(OAuth2ErrorCodes.SERVER_ERROR,
                         "The token generator failed to generate the refresh token.", ERROR_URI);
-                throw new OAuth2AuthenticationException(error);
             }
             LOGGER.info("Generated refresh token");
-
             oauth2RefreshToken = (OAuth2RefreshToken) generatedRefreshToken;
             authorizationBuilder.refreshToken(oauth2RefreshToken);
         }
-
-        // ----- ID token -----
-        OidcIdToken idToken;
-        if (requestedScopes.contains(OidcScopes.OPENID)) {
-            // @formatter:off
-            tokenContext = tokenContextBuilder
-                    .tokenType(ID_TOKEN_TOKEN_TYPE)
-                    // ID token customizer may need access to the access token and/or refresh token
-                    .authorization(authorizationBuilder.build())
-                    .build();
-            // @formatter:on
-            OAuth2Token generatedIdToken = this.tokenGenerator.generate(tokenContext);
-            if (!(generatedIdToken instanceof Jwt)) {
-                OAuth2Error error = new OAuth2Error(OAuth2ErrorCodes.SERVER_ERROR,
-                        "The token generator failed to generate the ID token.", ERROR_URI);
-                throw new OAuth2AuthenticationException(error);
-            }
-
-            LOGGER.info("Generated id token");
-
-            idToken = new OidcIdToken(generatedIdToken.getTokenValue(), generatedIdToken.getIssuedAt(),
-                    generatedIdToken.getExpiresAt(), ((Jwt) generatedIdToken).getClaims());
-            authorizationBuilder.token(idToken, (metadata) ->
-                    metadata.put(OAuth2Authorization.Token.CLAIMS_METADATA_NAME, idToken.getClaims()));
-        } else {
-            idToken = null;
-        }
-
-        OAuth2Authorization authorization = authorizationBuilder.build();
-        this.authorizationService.save(authorization);
-
-        LOGGER.info("Saved authorization");
-
-        Map<String, Object> additionalParameters = Collections.emptyMap();
-        if (idToken != null) {
-            additionalParameters = new HashMap<>();
-            additionalParameters.put(OidcParameterNames.ID_TOKEN, idToken.getTokenValue());
-        }
-
-        LOGGER.info("Authenticated token request");
-        return new OAuth2AccessTokenAuthenticationToken(registeredClient, clientPrincipal, accessToken, oauth2RefreshToken, additionalParameters);
+        return oauth2RefreshToken;
     }
 
-    private Authentication authenticatePassword(Map<String, Object> requestAdditionalParameters, Object details) {
+    private Authentication authenticatePassword(Map<String, Object> requestAdditionalParameters, Set<String> requestedScopes, Object details) {
         String username = requestAdditionalParameters.get(CusOAuth2ParameterNames.USERNAME).toString();
         String password = requestAdditionalParameters.get(CusOAuth2ParameterNames.PASSWORD).toString();
         String identityType = requestAdditionalParameters.get(CusOAuth2ParameterNames.IDENTITY_TYPE).toString();
         UserDetails userDetails = userDetailService.loadUserByIdentityType(username, identityType);
         if (userDetails == null) {
-            OAuth2Error error = new OAuth2Error(OAuth2ErrorCodes.SERVER_ERROR,
-                    "Bad Credentials: User Is Empty.", null);
-            throw new OAuth2AuthenticationException(error);
+            OAuth2EndpointUtils.throwError(OAuth2ErrorCodes.SERVER_ERROR, "Bad Credentials: User Is Empty.", null);
         }
         if (!passwordEncoder.matches(password, userDetails.getPassword())) {
-            throw new BadCredentialsException("password does not match");
+            OAuth2EndpointUtils.throwError(OAuth2ErrorCodes.SERVER_ERROR, "password does not match.", null);
         }
         OAuth2ResourceOwnerPasswordAuthenticationToken resourceOwnerPasswordAuthenticationToken =
                 new OAuth2ResourceOwnerPasswordAuthenticationToken(
                         userDetails.getAuthorities(),
                         AuthorizationGrantType.PASSWORD,
                         userDetails,
-                        null,
+                        requestedScopes,
                         requestAdditionalParameters
-
                 );
         resourceOwnerPasswordAuthenticationToken.setDetails(details);
         return resourceOwnerPasswordAuthenticationToken;
     }
 
-    /**
-     * @param authentication
-     * @return
-     */
+    private OidcIdToken generateOidcIdToken(DefaultOAuth2TokenContext.Builder tokenContextBuilder,
+                                            OAuth2Authorization.Builder authorizationBuilder) {
+        OAuth2TokenContext tokenContext = tokenContextBuilder
+                .tokenType(ID_TOKEN_TOKEN_TYPE)
+                // ID token customizer may need access to the access token and/or refresh token
+                .authorization(authorizationBuilder.build())
+                .build();
+        OAuth2Token generatedIdToken = this.tokenGenerator.generate(tokenContext);
+        if (!(generatedIdToken instanceof Jwt)) {
+            OAuth2EndpointUtils.throwError(OAuth2ErrorCodes.SERVER_ERROR,
+                    "The token generator failed to generate the ID token.", ERROR_URI);
+        }
+        LOGGER.info("Generated id token");
+        OidcIdToken idToken = new OidcIdToken(generatedIdToken.getTokenValue(), generatedIdToken.getIssuedAt(),
+                generatedIdToken.getExpiresAt(), ((Jwt) generatedIdToken).getClaims());
+        if (Objects.nonNull(idToken)) {
+            authorizationBuilder.token(idToken, (metadata) ->
+                    metadata.put(OAuth2Authorization.Token.CLAIMS_METADATA_NAME, idToken.getClaims()));
+        }
+        return idToken;
+    }
+
     @Override
     public boolean supports(Class<?> authentication) {
         return OAuth2ResourceOwnerPasswordAuthenticationToken.class.isAssignableFrom(authentication);

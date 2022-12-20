@@ -19,22 +19,32 @@ public class KeyGeneratorUtils {
 
     private static final String ALGORITHM_RSA = "RSA";
 
-    private static final String ALGORITHM_HMAC_SHA_1 = "HmacSHA1";
-    private static final String ALGORITHM_HMAC_SHA_256 = "HmacSHA256";
+    public static final String ALGORITHM_HMAC_SHA_1 = "HmacSHA1";
 
-    private static final int KEY_SIZE = 2048;
+    public static final String ALGORITHM_HMAC_SHA_256 = "HmacSHA256";
+
+    public static final int DEFAULT_KEY_SIZE = 2048;
 
     private KeyGeneratorUtils() {
     }
 
     public static SecretKey generateSecretKey() {
-        SecretKey hmacKey;
         try {
-            hmacKey = KeyGenerator.getInstance(ALGORITHM_HMAC_SHA_256).generateKey();
+            return KeyGenerator.getInstance(ALGORITHM_HMAC_SHA_256).generateKey();
         } catch (Exception ex) {
             throw new IllegalStateException(ex);
         }
-        return hmacKey;
+    }
+
+    public static SecretKey generateSecretKey(String algorithm) {
+        try {
+            if (StringUtils.hasText(algorithm)) {
+                return KeyGenerator.getInstance(algorithm).generateKey();
+            }
+        } catch (Exception ex) {
+            throw new IllegalStateException(ex);
+        }
+        return null;
     }
 
     public static KeyPair generateRsaKey() {
@@ -47,9 +57,9 @@ public class KeyGeneratorUtils {
             KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(ALGORITHM_RSA);
             if (StringUtils.hasText(seed)) {
                 SecureRandom secureRandom = new SecureRandom(seed.getBytes());
-                keyPairGenerator.initialize(KEY_SIZE, secureRandom);
+                keyPairGenerator.initialize(DEFAULT_KEY_SIZE, secureRandom);
             } else {
-                keyPairGenerator.initialize(KEY_SIZE);
+                keyPairGenerator.initialize(DEFAULT_KEY_SIZE);
             }
             keyPair = keyPairGenerator.generateKeyPair();
         } catch (Exception ex) {

@@ -42,7 +42,7 @@ public final class OAuth2ResourceOwnerPasswordAuthenticationConverter implements
         String scope = parameters.getFirst(CusOAuth2ParameterNames.SCOPE);
         if (StringUtils.hasText(scope) &&
                 parameters.get(CusOAuth2ParameterNames.SCOPE).size() != 1) {
-            OAuth2EndpointUtils.throwError(
+            OAuth2EndpointUtils.throwErrorByParameter(
                     OAuth2ErrorCodes.INVALID_REQUEST,
                     CusOAuth2ParameterNames.SCOPE,
                     OAuth2EndpointUtils.ACCESS_TOKEN_REQUEST_ERROR_URI);
@@ -56,7 +56,7 @@ public final class OAuth2ResourceOwnerPasswordAuthenticationConverter implements
         // username (REQUIRED)
         String username = parameters.getFirst(CusOAuth2ParameterNames.USERNAME);
         if (!StringUtils.hasText(username) || parameters.get(CusOAuth2ParameterNames.USERNAME).size() != 1) {
-            OAuth2EndpointUtils.throwError(
+            OAuth2EndpointUtils.throwErrorByParameter(
                     OAuth2ErrorCodes.INVALID_REQUEST,
                     CusOAuth2ParameterNames.USERNAME,
                     OAuth2EndpointUtils.ACCESS_TOKEN_REQUEST_ERROR_URI);
@@ -65,7 +65,7 @@ public final class OAuth2ResourceOwnerPasswordAuthenticationConverter implements
         // password (REQUIRED)
         String password = parameters.getFirst(CusOAuth2ParameterNames.PASSWORD);
         if (!StringUtils.hasText(password) || parameters.get(CusOAuth2ParameterNames.PASSWORD).size() != 1) {
-            OAuth2EndpointUtils.throwError(
+            OAuth2EndpointUtils.throwErrorByParameter(
                     OAuth2ErrorCodes.INVALID_REQUEST,
                     CusOAuth2ParameterNames.PASSWORD,
                     OAuth2EndpointUtils.ACCESS_TOKEN_REQUEST_ERROR_URI);
@@ -73,7 +73,7 @@ public final class OAuth2ResourceOwnerPasswordAuthenticationConverter implements
 
         Authentication clientPrincipal = SecurityContextHolder.getContext().getAuthentication();
         if (clientPrincipal == null) {
-            OAuth2EndpointUtils.throwError(
+            OAuth2EndpointUtils.throwErrorByParameter(
                     OAuth2ErrorCodes.INVALID_REQUEST,
                     OAuth2ErrorCodes.INVALID_CLIENT,
                     OAuth2EndpointUtils.ACCESS_TOKEN_REQUEST_ERROR_URI);
