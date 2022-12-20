@@ -17,12 +17,13 @@ public class PasswordEncoderFactory {
     public static final String PWD_ENCODER_BCRYPT = "bcrypt";
     public static final String PWD_ENCODER_SCRYPT = "scrypt";
     public static final String PWD_ENCODER_PBKDF2 = "pbkdf2";
-    public static final String PWD_CUSTOM_ENCODER_MD5 = "md5";
+    public static final String PWD_CUSTOM_ENCODER_MD5 = "MD5";
 
     public static final String PWD_ENCODER_SHA_1 = "SHA-1";
     public static final String PWD_ENCODER_SHA_256 = "SHA-256";
     public static final String PWD_ENCODER_SHA_384 = "SHA-384";
     public static final String PWD_ENCODER_SHA_512 = "SHA-512";
+
     public static final String PWD_ENCODER_SHA256 = "sha256";
 
     /*
@@ -41,15 +42,15 @@ public class PasswordEncoderFactory {
         PASSWORD_ENCODERS.put(PWD_ENCODER_SCRYPT, new SCryptPasswordEncoder());
         PASSWORD_ENCODERS.put(PWD_ENCODER_PBKDF2, new Pbkdf2PasswordEncoder());
         PASSWORD_ENCODERS.put(PWD_CUSTOM_ENCODER_MD5,
-                new CusMessageDigestPasswordEncoder(CusMessageDigestPasswordEncoder.Algorithm.MD5.getName()));
+                new CusMessageDigestPasswordEncoder(AlgorithmEnum.MD5.getName()));
         PASSWORD_ENCODERS.put(PWD_ENCODER_SHA_1,
-                new CusMessageDigestPasswordEncoder(CusMessageDigestPasswordEncoder.Algorithm.SHA1.getName()));
+                new CusMessageDigestPasswordEncoder(AlgorithmEnum.SHA1.getName()));
         PASSWORD_ENCODERS.put(PWD_ENCODER_SHA_256,
-                new CusMessageDigestPasswordEncoder(CusMessageDigestPasswordEncoder.Algorithm.SHA256.getName()));
+                new CusMessageDigestPasswordEncoder(AlgorithmEnum.SHA256.getName()));
         PASSWORD_ENCODERS.put(PWD_ENCODER_SHA_384,
-                new CusMessageDigestPasswordEncoder(CusMessageDigestPasswordEncoder.Algorithm.SHA384.getName()));
+                new CusMessageDigestPasswordEncoder(AlgorithmEnum.SHA384.getName()));
         PASSWORD_ENCODERS.put(PWD_ENCODER_SHA_512,
-                new CusMessageDigestPasswordEncoder(CusMessageDigestPasswordEncoder.Algorithm.SHA512.getName()));
+                new CusMessageDigestPasswordEncoder(AlgorithmEnum.SHA512.getName()));
     }
 
     private PasswordEncoderFactory() {
@@ -62,6 +63,6 @@ public class PasswordEncoderFactory {
      * @return PasswordEncoder
      */
     public static PasswordEncoder getInstance(String encoderId) {
-        return new DelegatingPasswordEncoder(encoderId.toLowerCase(), PASSWORD_ENCODERS);
+        return new DelegatingPasswordEncoder(encoderId, PASSWORD_ENCODERS);
     }
 }

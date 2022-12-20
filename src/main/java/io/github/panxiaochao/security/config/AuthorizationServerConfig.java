@@ -10,6 +10,7 @@ import io.github.panxiaochao.security.core.authorization.password.OAuth2Resource
 import io.github.panxiaochao.security.core.authorization.password.OAuth2ResourceOwnerPasswordAuthenticationProvider;
 import io.github.panxiaochao.security.handler.CustomAccessDeniedHandler;
 import io.github.panxiaochao.security.handler.CustomAuthenticationEntryPoint;
+import io.github.panxiaochao.security.properties.OAuth2SelfProperties;
 import io.github.panxiaochao.security.utils.KeyGeneratorUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -64,20 +65,8 @@ import java.util.UUID;
 public class AuthorizationServerConfig {
     private static final Logger LOGGER = LogManager.getLogger(AuthorizationServerConfig.class);
 
-    /**
-     * CLIENT_ID
-     */
-    private static final String CLIENT_ID = "client_auth";
-
-    /**
-     * CLIENT_SECRET
-     */
-    private static final String CLIENT_SECRET = "123456@";
-
-    /**
-     * CLIENT_SERVER
-     */
-    private static final String CLIENT_SERVER = "client_server";
+    @Resource
+    private OAuth2SelfProperties selfProperties;
 
     @Resource
     private PasswordEncoder passwordEncoder;
@@ -169,11 +158,12 @@ public class AuthorizationServerConfig {
         LOGGER.info(">>> 自定义 RegisteredClientRepository 配置");
         JdbcRegisteredClientRepository registeredClientRepository = new JdbcRegisteredClientRepository(jdbcTemplate);
         // 默认查询新建clientId
-        RegisteredClient registeredClient = registeredClientRepository.findByClientId(CLIENT_ID);
+        RegisteredClient registeredClient = registeredClientRepository.findByClientId(selfProperties.getClientId());
         if (Objects.isNull(registeredClient)) {
             registeredClient = createRegisteredClient();
-            registeredClientRepository.save(registeredClient);
         }
+        // save contain update
+        registeredClientRepository.save(registeredClient);
         return registeredClientRepository;
     }
 
@@ -185,13 +175,12 @@ public class AuthorizationServerConfig {
     private RegisteredClient createRegisteredClient() {
         return RegisteredClient
                 .withId(UUID.randomUUID().toString())
-                .clientId(CLIENT_ID)
-                .clientSecret(passwordEncoder.encode(CLIENT_SECRET))
-                .clientName(CLIENT_SERVER)
+                .clientId(selfProperties.getClientId())
+                .clientSecret(passwordEncoder.encode(selfProperties.getClientSecret()))
+                .clientName(selfProperties.getClientServer())
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
                 .authorizationGrantType(AuthorizationGrantType.PASSWORD)
-                .authorizationGrantType(AuthorizationGrantType.JWT_BEARER)
                 .scope(OidcScopes.OPENID)
                 .scope(OidcScopes.PROFILE)
                 .scope("all")

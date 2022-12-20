@@ -13,6 +13,14 @@ spring:
   main:
     allow-circular-references: true
     allow-bean-definition-overriding: true
+  # self OAuth2
+  security:
+    oauth2:
+      self:
+        clientId: client_auth
+        clientSecret: 123456@
+        clientServer: client_server
+        algorithm: MD5
 
 #数据库连接配置
 pxc:

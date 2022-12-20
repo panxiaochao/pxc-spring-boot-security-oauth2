@@ -2,6 +2,7 @@ package io.github.panxiaochao.security.config;
 
 import io.github.panxiaochao.security.constant.SecurityConstants;
 import io.github.panxiaochao.security.crypto.PasswordEncoderFactory;
+import io.github.panxiaochao.security.properties.OAuth2SelfProperties;
 import io.github.panxiaochao.security.service.UserDetailServiceImpl;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,6 +14,8 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+
+import javax.annotation.Resource;
 
 /**
  * {@code SecurityConfig}
@@ -26,6 +29,9 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private static final Logger LOGGER = LogManager.getLogger(SecurityConfig.class);
+
+    @Resource
+    private OAuth2SelfProperties selfProperties;
 
     /**
      * 自定义 UserDetailsService
@@ -42,7 +48,7 @@ public class SecurityConfig {
      */
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return PasswordEncoderFactory.getInstance("MD5");
+        return PasswordEncoderFactory.getInstance(selfProperties.getAlgorithm());
     }
 
     /**
