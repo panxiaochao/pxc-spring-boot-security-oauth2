@@ -39,6 +39,21 @@ public class OAuth2SelfProperties implements InitializingBean {
      */
     private String algorithm = AlgorithmEnum.MD5.getName();
 
+    /**
+     * accessTokenTimeToLive, default seconds
+     */
+    private long accessTokenTimeToLive = 3600;
+
+    /**
+     * refreshTokenTimeToLive, default seconds
+     */
+    private long refreshTokenTimeToLive = 7200;
+
+    /**
+     * seed
+     */
+    private String seed = "pxc-oauth2-seed";
+
 
     @Override
     public void afterPropertiesSet() throws Exception {

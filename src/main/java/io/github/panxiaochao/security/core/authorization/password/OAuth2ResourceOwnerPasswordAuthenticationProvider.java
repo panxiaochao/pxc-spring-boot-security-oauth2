@@ -178,8 +178,7 @@ public final class OAuth2ResourceOwnerPasswordAuthenticationProvider implements 
     private Authentication authenticatePassword(Map<String, Object> requestAdditionalParameters, Set<String> requestedScopes, Object details) {
         String username = requestAdditionalParameters.get(CusOAuth2ParameterNames.USERNAME).toString();
         String password = requestAdditionalParameters.get(CusOAuth2ParameterNames.PASSWORD).toString();
-        String identityType = requestAdditionalParameters.get(CusOAuth2ParameterNames.IDENTITY_TYPE).toString();
-        UserDetails userDetails = userDetailService.loadUserByIdentityType(username, identityType);
+        UserDetails userDetails = userDetailService.loadUserByUsername(username);
         if (userDetails == null) {
             OAuth2EndpointUtils.throwError(OAuth2ErrorCodes.SERVER_ERROR, "Bad Credentials: User Is Empty.", null);
         }

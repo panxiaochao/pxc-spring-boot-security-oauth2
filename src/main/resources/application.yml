@@ -21,6 +21,9 @@ spring:
         clientSecret: 123456@
         clientServer: client_server
         algorithm: MD5
+        accessTokenTimeToLive: 3600
+        refreshTokenTimeToLive: 7200
+        seed: pxc-oauth2-seed
 
 #数据库连接配置
 pxc:

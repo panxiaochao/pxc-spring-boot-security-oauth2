@@ -11,7 +11,7 @@ import io.github.panxiaochao.web.sys.user.service.ISysUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -59,9 +59,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             return null;
         }
         SysUser sysUser = this.getById(sysUserAuths.getUserId());
-        List<SysUserAuths> list = new ArrayList<>();
-        list.add(sysUserAuths);
-        sysUser.setSysUserAuths(list);
+        sysUser.setSysUserAuths(Collections.singletonList(sysUserAuths));
         return sysUser;
     }
 }

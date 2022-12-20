@@ -18,6 +18,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -42,6 +43,8 @@ import org.springframework.security.oauth2.server.authorization.settings.OAuth2T
 import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
 import org.springframework.security.oauth2.server.authorization.token.*;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
 import javax.annotation.Resource;
@@ -118,8 +121,16 @@ public class AuthorizationServerConfig {
         );
         //
         RequestMatcher endpointsMatcher = authorizationServerConfigurer.getEndpointsMatcher();
+        // support GET or POST
+        RequestMatcher tokenEndpointMatcher = new OrRequestMatcher(
+                new AntPathRequestMatcher(
+                        SecurityConstants.TOKEN_ENDPOINT,
+                        HttpMethod.POST.name()),
+                new AntPathRequestMatcher(
+                        SecurityConstants.TOKEN_ENDPOINT,
+                        HttpMethod.GET.name()));
         http
-                .requestMatcher(endpointsMatcher)
+                .authorizeRequests(authorizeRequestsCustomizer -> authorizeRequestsCustomizer.requestMatchers(endpointsMatcher, tokenEndpointMatcher))
                 .authorizeRequests(authorizeRequests -> authorizeRequests.anyRequest().authenticated());
         //
         http
@@ -180,6 +191,7 @@ public class AuthorizationServerConfig {
                 .clientName(selfProperties.getClientServer())
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+                .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
                 .authorizationGrantType(AuthorizationGrantType.PASSWORD)
                 .scope(OidcScopes.OPENID)
                 .scope(OidcScopes.PROFILE)
@@ -218,7 +230,7 @@ public class AuthorizationServerConfig {
      */
     @Bean
     public JWKSource<SecurityContext> jwkSource() {
-        KeyPair keyPair = KeyGeneratorUtils.generateRsaKey("pxc-auth-key");
+        KeyPair keyPair = KeyGeneratorUtils.generateRsaKey(selfProperties.getSeed());
         RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
         RSAPrivateKey privateKey = (RSAPrivateKey) keyPair.getPrivate();
         RSAKey rsaKey = new RSAKey
@@ -255,13 +267,11 @@ public class AuthorizationServerConfig {
      */
     public TokenSettings tokenSettings() {
         return TokenSettings.builder()
-                // 令牌存活时间：2小时
-                .accessTokenTimeToLive(Duration.ofHours(2))
                 .accessTokenFormat(OAuth2TokenFormat.SELF_CONTAINED)
-                // 令牌刷新
                 .reuseRefreshTokens(true)
-                // 刷新令牌存活时间：2小时
-                .refreshTokenTimeToLive(Duration.ofHours(2)).build();
+                .accessTokenTimeToLive(Duration.ofSeconds(selfProperties.getAccessTokenTimeToLive()))
+                .refreshTokenTimeToLive(Duration.ofSeconds(selfProperties.getRefreshTokenTimeToLive()))
+                .build();
     }
 
 
