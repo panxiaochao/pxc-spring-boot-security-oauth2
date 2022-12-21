@@ -1,11 +1,12 @@
-package io.github.panxiaochao.security.config.password;
+package io.github.panxiaochao.security.config;
 
 import io.github.panxiaochao.security.core.authorization.password.OAuth2ResourceOwnerPasswordAuthenticationProvider;
-import io.github.panxiaochao.security.service.UserDetailServiceImpl;
+import io.github.panxiaochao.security.service.UserDetailsServiceImpl;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.OAuth2Token;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
@@ -21,12 +22,12 @@ import javax.annotation.Resource;
  * @since 2022-12-16
  */
 @Configuration
-public class ResourceOwnerPasswordAuthenticationConfig {
+public class OAuth2CustomAuthenticationConfig {
 
-    private static final Logger LOGGER = LogManager.getLogger(ResourceOwnerPasswordAuthenticationConfig.class);
+    private static final Logger LOGGER = LogManager.getLogger(OAuth2CustomAuthenticationConfig.class);
 
     @Resource
-    private UserDetailServiceImpl userDetailService;
+    private UserDetailsServiceImpl userDetailService;
 
     @Resource
     private PasswordEncoder passwordEncoder;
@@ -39,7 +40,18 @@ public class ResourceOwnerPasswordAuthenticationConfig {
 
     @Bean
     public OAuth2ResourceOwnerPasswordAuthenticationProvider resourceOwnerPasswordAuthenticationProvider() {
-        LOGGER.info(">>> 自定义 AuthorizationServerSettings 配置");
+        LOGGER.info(">>> 自定义 OAuth2ResourceOwnerPasswordAuthenticationProvider 配置");
         return new OAuth2ResourceOwnerPasswordAuthenticationProvider(userDetailService, passwordEncoder, authorizationService, tokenGenerator);
     }
+
+    @Bean
+    public DaoAuthenticationProvider daoAuthenticationProvider() {
+        LOGGER.info(">>> 自定义 OAuth2UserNamePasswordDaoAuthenticationProvider 配置");
+        DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider();
+        daoAuthenticationProvider.setPasswordEncoder(passwordEncoder);
+        daoAuthenticationProvider.setUserDetailsService(userDetailService);
+        return daoAuthenticationProvider;
+    }
+
+
 }

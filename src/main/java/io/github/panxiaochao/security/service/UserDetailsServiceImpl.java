@@ -19,7 +19,7 @@ import java.util.List;
 /**
  * @author Lypxc
  */
-public class UserDetailServiceImpl implements UserDetailsService {
+public class UserDetailsServiceImpl implements UserDetailsService {
 
     @Resource
     private ISysUserService sysUserService;

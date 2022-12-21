@@ -2,7 +2,7 @@ package io.github.panxiaochao.security.core.authorization.password;
 
 import io.github.panxiaochao.security.core.endpoint.CusOAuth2ParameterNames;
 import io.github.panxiaochao.security.core.endpoint.OAuth2EndpointUtils;
-import io.github.panxiaochao.security.service.UserDetailServiceImpl;
+import io.github.panxiaochao.security.service.UserDetailsServiceImpl;
 import lombok.Getter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -29,6 +29,7 @@ import org.springframework.security.oauth2.server.authorization.token.OAuth2Toke
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 
+import java.security.Principal;
 import java.util.*;
 
 
@@ -48,7 +49,7 @@ public final class OAuth2ResourceOwnerPasswordAuthenticationProvider implements 
 
     private static final OAuth2TokenType ID_TOKEN_TOKEN_TYPE = new OAuth2TokenType(OidcParameterNames.ID_TOKEN);
 
-    private final UserDetailServiceImpl userDetailService;
+    private final UserDetailsServiceImpl userDetailService;
 
     private final PasswordEncoder passwordEncoder;
 
@@ -56,7 +57,7 @@ public final class OAuth2ResourceOwnerPasswordAuthenticationProvider implements 
 
     private final OAuth2TokenGenerator<? extends OAuth2Token> tokenGenerator;
 
-    public OAuth2ResourceOwnerPasswordAuthenticationProvider(UserDetailServiceImpl userDetailService,
+    public OAuth2ResourceOwnerPasswordAuthenticationProvider(UserDetailsServiceImpl userDetailService,
                                                              PasswordEncoder passwordEncoder, OAuth2AuthorizationService authorizationService,
                                                              OAuth2TokenGenerator<? extends OAuth2Token> tokenGenerator) {
         Assert.notNull(userDetailService, "userDetailService cannot be null");
@@ -101,19 +102,24 @@ public final class OAuth2ResourceOwnerPasswordAuthenticationProvider implements 
             }
             authorizedScopes = new LinkedHashSet<>(requestedScopes);
         }
+        // OAuth2Authorization
+        OAuth2Authorization authorization = OAuth2Authorization.withRegisteredClient(registeredClient)
+                .principalName(clientPrincipal.getName())
+                .authorizationGrantType(AuthorizationGrantType.PASSWORD)
+                .authorizedScopes(authorizedScopes)
+                .attributes(attributesConsumer -> attributesConsumer.put(Principal.class.getName(), principal))
+                .build();
         // DefaultOAuth2TokenContext.Builder
         DefaultOAuth2TokenContext.Builder tokenContextBuilder = DefaultOAuth2TokenContext.builder()
                 .registeredClient(registeredClient)
-                .principal(principal)
+                .principal(authorization.getAttribute(Principal.class.getName()))
                 .authorizationServerContext(AuthorizationServerContextHolder.getContext())
+                .authorization(authorization)
                 .authorizedScopes(authorizedScopes)
                 .authorizationGrantType(AuthorizationGrantType.PASSWORD)
                 .authorizationGrant(resourceOwnerPasswordAuthenticationToken);
         // OAuth2Authorization.Builder
-        OAuth2Authorization.Builder authorizationBuilder = OAuth2Authorization.withRegisteredClient(registeredClient)
-                .principalName(clientPrincipal.getName())
-                .authorizationGrantType(AuthorizationGrantType.PASSWORD)
-                .authorizedScopes(authorizedScopes);
+        OAuth2Authorization.Builder authorizationBuilder = OAuth2Authorization.from(authorization);
         // Access token
         OAuth2AccessToken accessToken = generateAccessToken(tokenContextBuilder, authorizationBuilder);
         // Refresh token
@@ -127,8 +133,8 @@ public final class OAuth2ResourceOwnerPasswordAuthenticationProvider implements 
                 additionalParameters.put(OidcParameterNames.ID_TOKEN, idToken.getTokenValue());
             }
         }
-        // OAuth2Authorization authorization
-        OAuth2Authorization authorization = authorizationBuilder.build();
+        // OAuth2Authorization
+        authorization = authorizationBuilder.build();
         this.authorizationService.save(authorization);
         LOGGER.info("Saved authorization");
         return new OAuth2AccessTokenAuthenticationToken(registeredClient, clientPrincipal, accessToken, oauth2RefreshToken, additionalParameters);
@@ -178,6 +184,7 @@ public final class OAuth2ResourceOwnerPasswordAuthenticationProvider implements 
     private Authentication authenticatePassword(Map<String, Object> requestAdditionalParameters, Set<String> requestedScopes, Object details) {
         String username = requestAdditionalParameters.get(CusOAuth2ParameterNames.USERNAME).toString();
         String password = requestAdditionalParameters.get(CusOAuth2ParameterNames.PASSWORD).toString();
+        // requestAdditionalParameters.get(CusOAuth2ParameterNames.IDENTITY_TYPE).toString();
         UserDetails userDetails = userDetailService.loadUserByUsername(username);
         if (userDetails == null) {
             OAuth2EndpointUtils.throwError(OAuth2ErrorCodes.SERVER_ERROR, "Bad Credentials: User Is Empty.", null);

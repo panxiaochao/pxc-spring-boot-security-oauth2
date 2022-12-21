@@ -1,5 +1,7 @@
 package io.github.panxiaochao.security.config;
 
+import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
@@ -8,8 +10,9 @@ import com.nimbusds.jose.proc.SecurityContext;
 import io.github.panxiaochao.security.constant.SecurityConstants;
 import io.github.panxiaochao.security.core.authorization.password.OAuth2ResourceOwnerPasswordAuthenticationConverter;
 import io.github.panxiaochao.security.core.authorization.password.OAuth2ResourceOwnerPasswordAuthenticationProvider;
+import io.github.panxiaochao.security.core.authorization.password.OAuth2ResourceOwnerPasswordAuthenticationToken;
 import io.github.panxiaochao.security.handler.CustomAccessDeniedHandler;
-import io.github.panxiaochao.security.handler.CustomAuthenticationEntryPoint;
+import io.github.panxiaochao.security.jackson2.mixin.OAuth2ResourceOwnerPasswordMixin;
 import io.github.panxiaochao.security.properties.OAuth2SelfProperties;
 import io.github.panxiaochao.security.utils.KeyGeneratorUtils;
 import org.apache.logging.log4j.LogManager;
@@ -18,13 +21,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
-import org.springframework.http.HttpMethod;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.config.Customizer;
+import org.springframework.jdbc.support.lob.DefaultLobHandler;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.jackson2.SecurityJackson2Modules;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.OAuth2Token;
@@ -37,14 +40,14 @@ import org.springframework.security.oauth2.server.authorization.client.Registere
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
+import org.springframework.security.oauth2.server.authorization.jackson2.OAuth2AuthorizationServerJackson2Module;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 import org.springframework.security.oauth2.server.authorization.settings.OAuth2TokenFormat;
 import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
 import org.springframework.security.oauth2.server.authorization.token.*;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
-import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
 import javax.annotation.Resource;
@@ -53,6 +56,7 @@ import java.security.KeyPair;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -77,6 +81,9 @@ public class AuthorizationServerConfig {
     @Resource
     private OAuth2ResourceOwnerPasswordAuthenticationProvider resourceOwnerPasswordAuthenticationProvider;
 
+    @Resource
+    public DaoAuthenticationProvider daoAuthenticationProvider;
+
     @Bean
     public JdbcTemplate jdbcTemplate(DataSource dataSource) {
         return new JdbcTemplate(dataSource);
@@ -94,12 +101,12 @@ public class AuthorizationServerConfig {
         return AuthorizationServerSettings.builder()
                 // .authorizationEndpoint("/oauth2/v1/authorize")
                 .tokenEndpoint(SecurityConstants.TOKEN_ENDPOINT)
-                // .tokenIntrospectionEndpoint("/oauth2/v1/introspect")
-                // .tokenRevocationEndpoint("/oauth2/v1/revoke")
-                // .jwkSetEndpoint("/oauth2/v1/jwks")
-                // .oidcUserInfoEndpoint("/connect/v1/userinfo")
-                // .oidcClientRegistrationEndpoint("/connect/v1/register")
-                .issuer("http://localhost:18000/")
+                .tokenIntrospectionEndpoint("/oauth2/v1/introspect")
+                .tokenRevocationEndpoint("/oauth2/v1/revoke")
+                .jwkSetEndpoint("/oauth2/v1/jwks")
+                .oidcUserInfoEndpoint("/connect/v1/userinfo")
+                .oidcClientRegistrationEndpoint("/connect/v1/register")
+                .issuer("http://127.0.0.1:18000/")
                 .build();
     }
 
@@ -114,38 +121,23 @@ public class AuthorizationServerConfig {
         LOGGER.info(">>> 自定义 AuthorizationServerSecurityFilterChain 配置");
         OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer();
         // custom converter and provider
-        authorizationServerConfigurer.tokenEndpoint(tokenEndpoint -> {
-                    tokenEndpoint.accessTokenRequestConverter(new OAuth2ResourceOwnerPasswordAuthenticationConverter());
-                    tokenEndpoint.authenticationProvider(resourceOwnerPasswordAuthenticationProvider);
-                }
-        );
+        authorizationServerConfigurer.tokenEndpoint(tokenEndpoint ->
+                tokenEndpoint
+                        .accessTokenRequestConverter(new OAuth2ResourceOwnerPasswordAuthenticationConverter())
+                        .authenticationProvider(resourceOwnerPasswordAuthenticationProvider)
+                        .authenticationProvider(daoAuthenticationProvider));
         //
         RequestMatcher endpointsMatcher = authorizationServerConfigurer.getEndpointsMatcher();
-        // support GET or POST
-        RequestMatcher tokenEndpointMatcher = new OrRequestMatcher(
-                new AntPathRequestMatcher(
-                        SecurityConstants.TOKEN_ENDPOINT,
-                        HttpMethod.POST.name()),
-                new AntPathRequestMatcher(
-                        SecurityConstants.TOKEN_ENDPOINT,
-                        HttpMethod.GET.name()));
-        http
-                .authorizeRequests(authorizeRequestsCustomizer -> authorizeRequestsCustomizer.requestMatchers(endpointsMatcher, tokenEndpointMatcher))
-                .authorizeRequests(authorizeRequests -> authorizeRequests.anyRequest().authenticated());
-        //
-        http
-                .cors().and()
-                .csrf(csrf -> csrf.ignoringRequestMatchers(endpointsMatcher).disable())
-                .headers().frameOptions().disable().and()
-                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS).and()
-                .headers().cacheControl();
-        //
-        http.apply(authorizationServerConfigurer).oidc(Customizer.withDefaults());
+        http.requestMatcher(endpointsMatcher)
+                .authorizeRequests(authorizeRequests -> authorizeRequests.anyRequest().authenticated())
+                .csrf(csrf -> csrf.ignoringRequestMatchers(endpointsMatcher))
+                .apply(authorizationServerConfigurer);
         // 授权异常处理
         http.exceptionHandling(exception -> {
             exception
                     .accessDeniedHandler(new CustomAccessDeniedHandler())
-                    .authenticationEntryPoint(new CustomAuthenticationEntryPoint());
+                    // .authenticationEntryPoint(new CustomAuthenticationEntryPoint())
+                    .authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login"));
         });
         return http.build();
     }
@@ -172,9 +164,14 @@ public class AuthorizationServerConfig {
         RegisteredClient registeredClient = registeredClientRepository.findByClientId(selfProperties.getClientId());
         if (Objects.isNull(registeredClient)) {
             registeredClient = createRegisteredClient();
+            registeredClientRepository.save(registeredClient);
         }
-        // save contain update
-        registeredClientRepository.save(registeredClient);
+        // AUTHORIZATION_CODE
+        registeredClient = registeredClientRepository.findByClientId("client_code");
+        if (Objects.isNull(registeredClient)) {
+            registeredClient = createAuthorizationCodeRegisteredClient();
+            registeredClientRepository.save(registeredClient);
+        }
         return registeredClientRepository;
     }
 
@@ -195,9 +192,36 @@ public class AuthorizationServerConfig {
                 .authorizationGrantType(AuthorizationGrantType.PASSWORD)
                 .scope(OidcScopes.OPENID)
                 .scope(OidcScopes.PROFILE)
-                .scope("all")
                 .tokenSettings(tokenSettings())
-                .clientSettings(clientSettings())
+                .clientSettings(clientSettings(false))
+                .build();
+    }
+
+    /**
+     * http://127.0.0.1:18000/oauth2/authorize?response_type=code&client_id=client_code&scope=message.read&redirect_uri=https://www.baidu.com
+     *
+     * @return
+     */
+    private RegisteredClient createAuthorizationCodeRegisteredClient() {
+        return RegisteredClient
+                .withId(UUID.randomUUID().toString())
+                .clientId("client_code")
+                .clientSecret(passwordEncoder.encode("123456@"))
+                .clientName("client_code_server")
+                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+                // 回调地址
+                .redirectUri("http://127.0.0.1:8080/login/oauth2/code/messaging-client-oidc")
+                .redirectUri("http://127.0.0.1:8080/authorized")
+                .redirectUri("https://www.baidu.com")
+                .scope(OidcScopes.OPENID)
+                .scope(OidcScopes.PROFILE)
+                .scope("message.read")
+                .scope("message.write")
+                .tokenSettings(tokenSettings())
+                .clientSettings(clientSettings(true))
                 .build();
     }
 
@@ -210,7 +234,19 @@ public class AuthorizationServerConfig {
      */
     @Bean
     public OAuth2AuthorizationService authorizationService(JdbcTemplate jdbcTemplate, RegisteredClientRepository registeredClientRepository) {
-        return new JdbcOAuth2AuthorizationService(jdbcTemplate, registeredClientRepository);
+        JdbcOAuth2AuthorizationService authorizationService = new JdbcOAuth2AuthorizationService(jdbcTemplate, registeredClientRepository);
+        JdbcOAuth2AuthorizationService.OAuth2AuthorizationRowMapper authorizationRowMapper = new JdbcOAuth2AuthorizationService.OAuth2AuthorizationRowMapper(registeredClientRepository);
+        ObjectMapper objectMapper = new ObjectMapper();
+        ClassLoader classLoader = JdbcOAuth2AuthorizationService.class.getClassLoader();
+        List<Module> securityModules = SecurityJackson2Modules.getModules(classLoader);
+        objectMapper.registerModules(securityModules);
+        objectMapper.registerModule(new OAuth2AuthorizationServerJackson2Module());
+        // You will need to write the Mixin for your class so Jackson can marshall it.
+        objectMapper.addMixIn(OAuth2ResourceOwnerPasswordAuthenticationToken.class, OAuth2ResourceOwnerPasswordMixin.class);
+        authorizationRowMapper.setObjectMapper(objectMapper);
+        authorizationRowMapper.setLobHandler(new DefaultLobHandler());
+        authorizationService.setAuthorizationRowMapper(authorizationRowMapper);
+        return authorizationService;
     }
 
     /**
@@ -280,10 +316,10 @@ public class AuthorizationServerConfig {
      *
      * @return ClientSettings
      */
-    public ClientSettings clientSettings() {
+    public ClientSettings clientSettings(boolean requireAuthorizationConsent) {
         return ClientSettings.builder()
                 // 是否需要用户授权确认
-                .requireAuthorizationConsent(false).build();
+                .requireAuthorizationConsent(requireAuthorizationConsent).build();
     }
 
     // @Bean

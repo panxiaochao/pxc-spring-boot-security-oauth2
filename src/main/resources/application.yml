@@ -5,9 +5,6 @@ server:
     context-path: /
 
 spring:
-  # 关闭使用thymeleaf
-  thymeleaf:
-    enabled: false
   application:
     name: security-oauth2-server
   main:
