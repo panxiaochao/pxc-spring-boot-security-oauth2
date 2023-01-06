@@ -17,6 +17,7 @@ public class OAuth2ResourceOwnerPasswordDeserializer extends JsonDeserializer<OA
     @Override
     public OAuth2ResourceOwnerPasswordAuthenticationToken deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException, JsonProcessingException {
 
+        // TODO: 2022/12/21 需要自己解析
         ObjectMapper mapper = (ObjectMapper) jp.getCodec();
         JsonNode jsonNode = mapper.readTree(jp);
         String username = readJsonNode(jsonNode, "name").asText();

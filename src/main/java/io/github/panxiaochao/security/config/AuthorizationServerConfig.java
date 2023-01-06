@@ -7,10 +7,11 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
-import io.github.panxiaochao.security.constant.SecurityConstants;
+import io.github.panxiaochao.security.constant.GlobalSecurityConstants;
 import io.github.panxiaochao.security.core.authorization.password.OAuth2ResourceOwnerPasswordAuthenticationConverter;
 import io.github.panxiaochao.security.core.authorization.password.OAuth2ResourceOwnerPasswordAuthenticationProvider;
 import io.github.panxiaochao.security.core.authorization.password.OAuth2ResourceOwnerPasswordAuthenticationToken;
+import io.github.panxiaochao.security.core.token.OAuth2CustomizeAccessTokenGenerator;
 import io.github.panxiaochao.security.handler.CustomAccessDeniedHandler;
 import io.github.panxiaochao.security.jackson2.mixin.OAuth2ResourceOwnerPasswordMixin;
 import io.github.panxiaochao.security.properties.OAuth2SelfProperties;
@@ -100,7 +101,7 @@ public class AuthorizationServerConfig {
         LOGGER.info(">>> 自定义 AuthorizationServerSettings 配置");
         return AuthorizationServerSettings.builder()
                 // .authorizationEndpoint("/oauth2/v1/authorize")
-                .tokenEndpoint(SecurityConstants.TOKEN_ENDPOINT)
+                .tokenEndpoint(GlobalSecurityConstants.TOKEN_ENDPOINT)
                 .tokenIntrospectionEndpoint("/oauth2/v1/introspect")
                 .tokenRevocationEndpoint("/oauth2/v1/revoke")
                 .jwkSetEndpoint("/oauth2/v1/jwks")
@@ -143,12 +144,17 @@ public class AuthorizationServerConfig {
     }
 
     @Bean
-    public OAuth2TokenGenerator<? extends OAuth2Token> tokenGenerator(JwtEncoder jwtEncoder) {
+    public OAuth2TokenGenerator<? extends OAuth2Token> tokenGenerator(JwtEncoder jwtEncoder,
+                                                                      OAuth2TokenCustomizer<OAuth2TokenClaimsContext> accessTokenCustomizer) {
         LOGGER.info(">>> 自定义 OAuth2TokenGenerator 配置");
         JwtGenerator jwtGenerator = new JwtGenerator(jwtEncoder);
         OAuth2AccessTokenGenerator accessTokenGenerator = new OAuth2AccessTokenGenerator();
+        accessTokenGenerator.setAccessTokenCustomizer(accessTokenCustomizer);
         OAuth2RefreshTokenGenerator refreshTokenGenerator = new OAuth2RefreshTokenGenerator();
-        return new DelegatingOAuth2TokenGenerator(jwtGenerator, accessTokenGenerator, refreshTokenGenerator);
+        OAuth2CustomizeAccessTokenGenerator customizeAccessTokenGenerator = new OAuth2CustomizeAccessTokenGenerator();
+        customizeAccessTokenGenerator.setAccessTokenCustomizer(accessTokenCustomizer);
+        // 这里是有顺序的，自定义的需要放在最前面
+        return new DelegatingOAuth2TokenGenerator(customizeAccessTokenGenerator, jwtGenerator, accessTokenGenerator, refreshTokenGenerator);
     }
 
     /**

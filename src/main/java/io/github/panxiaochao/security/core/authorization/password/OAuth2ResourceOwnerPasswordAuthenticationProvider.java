@@ -1,5 +1,6 @@
 package io.github.panxiaochao.security.core.authorization.password;
 
+import io.github.panxiaochao.security.constant.GlobalSecurityConstants;
 import io.github.panxiaochao.security.core.endpoint.CusOAuth2ParameterNames;
 import io.github.panxiaochao.security.core.endpoint.OAuth2EndpointUtils;
 import io.github.panxiaochao.security.service.UserDetailsServiceImpl;
@@ -142,7 +143,8 @@ public final class OAuth2ResourceOwnerPasswordAuthenticationProvider implements 
 
     private OAuth2AccessToken generateAccessToken(DefaultOAuth2TokenContext.Builder tokenContextBuilder,
                                                   OAuth2Authorization.Builder authorizationBuilder) {
-        OAuth2TokenContext tokenContext = tokenContextBuilder.tokenType(OAuth2TokenType.ACCESS_TOKEN).build();
+        OAuth2TokenContext tokenContext = tokenContextBuilder.tokenType(GlobalSecurityConstants.CUSTOMIZE_ACCESS_TOKEN).build();
+        // OAuth2TokenContext tokenContext = tokenContextBuilder.tokenType(OAuth2TokenType.ACCESS_TOKEN).build();
         OAuth2Token generatedAccessToken = this.tokenGenerator.generate(tokenContext);
         if (generatedAccessToken == null) {
             OAuth2EndpointUtils.throwError(OAuth2ErrorCodes.SERVER_ERROR,
