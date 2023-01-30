@@ -15,14 +15,21 @@ import java.util.Map;
 public class PasswordEncoderFactory {
 
     public static final String PWD_ENCODER_BCRYPT = "bcrypt";
+
     public static final String PWD_ENCODER_SCRYPT = "scrypt";
+
     public static final String PWD_ENCODER_PBKDF2 = "pbkdf2";
+
     public static final String PWD_CUSTOM_ENCODER_MD5 = "MD5";
 
     public static final String PWD_ENCODER_SHA_1 = "SHA-1";
+
     public static final String PWD_ENCODER_SHA_256 = "SHA-256";
+
     public static final String PWD_ENCODER_SHA_384 = "SHA-384";
+
     public static final String PWD_ENCODER_SHA_512 = "SHA-512";
+
 
     public static final String PWD_ENCODER_SHA256 = "sha256";
 

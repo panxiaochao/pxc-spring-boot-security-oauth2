@@ -4,6 +4,7 @@ server:
   servlet:
     context-path: /
 
+# spring
 spring:
   application:
     name: security-oauth2-server
@@ -49,4 +50,4 @@ mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
     # 开发测试时使用
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl

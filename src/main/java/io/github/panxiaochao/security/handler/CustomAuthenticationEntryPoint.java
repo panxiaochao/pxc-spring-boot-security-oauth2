@@ -17,7 +17,7 @@ import java.io.PrintWriter;
 /**
  * 无效Token异常类重新，统一返回Json格式
  *
- * @author Mr_LyPxc
+ * @author Lypxc
  */
 public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint {
 

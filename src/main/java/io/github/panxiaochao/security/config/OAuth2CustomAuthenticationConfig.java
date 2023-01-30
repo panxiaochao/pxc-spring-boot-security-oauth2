@@ -2,8 +2,8 @@ package io.github.panxiaochao.security.config;
 
 import io.github.panxiaochao.security.core.authorization.password.OAuth2ResourceOwnerPasswordAuthenticationProvider;
 import io.github.panxiaochao.security.service.UserDetailsServiceImpl;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -24,7 +24,7 @@ import javax.annotation.Resource;
 @Configuration
 public class OAuth2CustomAuthenticationConfig {
 
-    private static final Logger LOGGER = LogManager.getLogger(OAuth2CustomAuthenticationConfig.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(OAuth2CustomAuthenticationConfig.class);
 
     @Resource
     private UserDetailsServiceImpl userDetailService;
@@ -46,7 +46,7 @@ public class OAuth2CustomAuthenticationConfig {
 
     @Bean
     public DaoAuthenticationProvider daoAuthenticationProvider() {
-        LOGGER.info(">>> 自定义 OAuth2UserNamePasswordDaoAuthenticationProvider 配置");
+        LOGGER.info(">>> 自定义 DaoAuthenticationProvider 配置");
         DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider();
         daoAuthenticationProvider.setPasswordEncoder(passwordEncoder);
         daoAuthenticationProvider.setUserDetailsService(userDetailService);

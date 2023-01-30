@@ -3,8 +3,8 @@ package io.github.panxiaochao.security.config;
 import io.github.panxiaochao.security.crypto.PasswordEncoderFactory;
 import io.github.panxiaochao.security.properties.OAuth2SelfProperties;
 import io.github.panxiaochao.security.service.UserDetailsServiceImpl;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -27,7 +27,7 @@ import javax.annotation.Resource;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    private static final Logger LOGGER = LogManager.getLogger(SecurityConfig.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SecurityConfig.class);
 
     @Resource
     private OAuth2SelfProperties selfProperties;
@@ -41,7 +41,7 @@ public class SecurityConfig {
     }
 
     /**
-     * 自定义密码模式-MD5 模式
+     * 自定义密码模式- MD5模式
      *
      * @return PasswordEncoder
      */

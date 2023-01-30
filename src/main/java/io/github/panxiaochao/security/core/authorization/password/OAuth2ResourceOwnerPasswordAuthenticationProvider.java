@@ -5,8 +5,8 @@ import io.github.panxiaochao.security.core.endpoint.CusOAuth2ParameterNames;
 import io.github.panxiaochao.security.core.endpoint.OAuth2EndpointUtils;
 import io.github.panxiaochao.security.service.UserDetailsServiceImpl;
 import lombok.Getter;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -44,7 +44,7 @@ import java.util.*;
 @Getter
 public final class OAuth2ResourceOwnerPasswordAuthenticationProvider implements AuthenticationProvider {
 
-    private static final Logger LOGGER = LogManager.getLogger(OAuth2ResourceOwnerPasswordAuthenticationProvider.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(OAuth2ResourceOwnerPasswordAuthenticationProvider.class);
 
     private static final String ERROR_URI = "https://datatracker.ietf.org/doc/html/rfc6749#section-5.2";
 

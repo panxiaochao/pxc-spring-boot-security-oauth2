@@ -16,8 +16,8 @@ import io.github.panxiaochao.security.handler.CustomAccessDeniedHandler;
 import io.github.panxiaochao.security.jackson2.mixin.OAuth2ResourceOwnerPasswordMixin;
 import io.github.panxiaochao.security.properties.OAuth2SelfProperties;
 import io.github.panxiaochao.security.utils.KeyGeneratorUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
@@ -66,12 +66,13 @@ import java.util.UUID;
  * {@code AuthorizationServerConfig}
  * <p>
  *
- * @author Mr_LyPxc
+ * @author Lypxc
  * @since 2022-09-04
  */
 @Configuration(proxyBeanMethods = false)
 public class AuthorizationServerConfig {
-    private static final Logger LOGGER = LogManager.getLogger(AuthorizationServerConfig.class);
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthorizationServerConfig.class);
 
     @Resource
     private OAuth2SelfProperties selfProperties;
@@ -92,9 +93,9 @@ public class AuthorizationServerConfig {
 
     /**
      * （必需）自定义 OAuth2 授权服务器配置设置的，可以自定义请求端
-     * since 0.4.0
      *
      * @return AuthorizationServerSettings
+     * @since 0.4.0
      */
     @Bean
     public AuthorizationServerSettings authorizationServerSettings() {
@@ -112,9 +113,11 @@ public class AuthorizationServerConfig {
     }
 
     /**
-     * @param http
-     * @return
-     * @throws Exception
+     * A Spring Security filter chain for the Protocol Endpoints.
+     *
+     * @param http HttpSecurity
+     * @return SecurityFilterChain
+     * @throws Exception 异常
      */
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -138,6 +141,7 @@ public class AuthorizationServerConfig {
             exception
                     .accessDeniedHandler(new CustomAccessDeniedHandler())
                     // .authenticationEntryPoint(new CustomAuthenticationEntryPoint())
+                    // 使用授权码模式登录
                     .authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login"));
         });
         return http.build();
@@ -204,9 +208,10 @@ public class AuthorizationServerConfig {
     }
 
     /**
+     * <p>
      * http://127.0.0.1:18000/oauth2/authorize?response_type=code&client_id=client_code&scope=message.read&redirect_uri=https://www.baidu.com
      *
-     * @return
+     * @return RegisteredClient
      */
     private RegisteredClient createAuthorizationCodeRegisteredClient() {
         return RegisteredClient
@@ -285,8 +290,8 @@ public class AuthorizationServerConfig {
     }
 
     /**
-     * @param jwkSource
-     * @return
+     * @param jwkSource jwkSource
+     * @return JwtDecoder
      */
     @Bean
     public JwtDecoder jwtDecoder(JWKSource<SecurityContext> jwkSource) {
@@ -294,8 +299,8 @@ public class AuthorizationServerConfig {
     }
 
     /**
-     * @param jwkSource
-     * @return
+     * @param jwkSource jwkSource
+     * @return JwtEncoder
      */
     @Bean
     public JwtEncoder jwtEncoder(JWKSource<SecurityContext> jwkSource) {
@@ -325,31 +330,9 @@ public class AuthorizationServerConfig {
     public ClientSettings clientSettings(boolean requireAuthorizationConsent) {
         return ClientSettings.builder()
                 // 是否需要用户授权确认
-                .requireAuthorizationConsent(requireAuthorizationConsent).build();
+                .requireAuthorizationConsent(requireAuthorizationConsent)
+                .build();
     }
-
-    // @Bean
-    // public OAuth2TokenCustomizer<JwtEncodingContext> buildJwtCustomizer() {
-    //
-    //     JwtCustomizerHandler jwtCustomizerHandler = JwtCustomizerHandler.getJwtCustomizerHandler();
-    //     JwtCustomizer jwtCustomizer = new JwtCustomizerImpl(jwtCustomizerHandler);
-    //     OAuth2TokenCustomizer<JwtEncodingContext> customizer = (context) -> {
-    //         jwtCustomizer.customizeToken(context);
-    //     };
-    //
-    //     return customizer;
-    // }
-    //
-    // @Bean
-    // public OAuth2TokenCustomizer<OAuth2TokenClaimsContext> buildOAuth2TokenClaimsCustomizer() {
-    //
-    //     OAuth2TokenClaimsCustomizer oauth2TokenClaimsCustomizer = new OAuth2TokenClaimsCustomizerImpl();
-    //     OAuth2TokenCustomizer<OAuth2TokenClaimsContext> customizer = (context) -> {
-    //         oauth2TokenClaimsCustomizer.customizeTokenClaims(context);
-    //     };
-    //
-    //     return customizer;
-    // }
 
     @Bean
     public OAuth2TokenCustomizer<OAuth2TokenClaimsContext> accessTokenCustomizer() {

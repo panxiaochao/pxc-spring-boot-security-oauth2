@@ -2,8 +2,8 @@ package io.github.panxiaochao.security.core.authorization.password;
 
 import io.github.panxiaochao.security.core.endpoint.CusOAuth2ParameterNames;
 import io.github.panxiaochao.security.core.endpoint.OAuth2EndpointUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
@@ -26,7 +26,7 @@ import java.util.*;
  */
 public final class OAuth2ResourceOwnerPasswordAuthenticationConverter implements AuthenticationConverter {
 
-    private static final Logger LOGGER = LogManager.getLogger(OAuth2ResourceOwnerPasswordAuthenticationConverter.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(OAuth2ResourceOwnerPasswordAuthenticationConverter.class);
 
     @Override
     public Authentication convert(HttpServletRequest request) {

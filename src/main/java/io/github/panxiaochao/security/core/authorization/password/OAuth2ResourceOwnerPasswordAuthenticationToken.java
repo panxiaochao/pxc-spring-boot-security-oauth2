@@ -1,8 +1,8 @@
 package io.github.panxiaochao.security.core.authorization.password;
 
 import lombok.Getter;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
@@ -20,7 +20,7 @@ import java.util.*;
 @Getter
 public final class OAuth2ResourceOwnerPasswordAuthenticationToken extends AbstractAuthenticationToken {
 
-    private static final Logger LOGGER = LogManager.getLogger(OAuth2ResourceOwnerPasswordAuthenticationToken.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(OAuth2ResourceOwnerPasswordAuthenticationToken.class);
 
     private final AuthorizationGrantType authorizationGrantType;
 
