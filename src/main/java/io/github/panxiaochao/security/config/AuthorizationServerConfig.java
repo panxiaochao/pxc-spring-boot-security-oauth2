@@ -2,6 +2,8 @@ package io.github.panxiaochao.security.config;
 
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nimbusds.jose.jwk.source.JWKSource;
+import com.nimbusds.jose.proc.SecurityContext;
 import io.github.panxiaochao.security.constant.GlobalSecurityConstants;
 import io.github.panxiaochao.security.core.authorization.password.OAuth2ResourceOwnerPasswordAuthenticationConverter;
 import io.github.panxiaochao.security.core.authorization.password.OAuth2ResourceOwnerPasswordAuthenticationProvider;
@@ -10,6 +12,7 @@ import io.github.panxiaochao.security.core.token.OAuth2CustomizeAccessTokenGener
 import io.github.panxiaochao.security.handler.CustomAccessDeniedHandler;
 import io.github.panxiaochao.security.jackson2.mixin.OAuth2ResourceOwnerPasswordMixin;
 import io.github.panxiaochao.security.properties.OAuth2SelfProperties;
+import io.github.panxiaochao.security.service.UserDetailsServiceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
@@ -18,6 +21,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.lob.DefaultLobHandler;
+import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -28,6 +32,7 @@ import org.springframework.security.oauth2.core.OAuth2Token;
 import org.springframework.security.oauth2.core.oidc.OidcScopes;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationConsentService;
 import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationConsentService;
@@ -72,13 +77,13 @@ public class AuthorizationServerConfig {
     private PasswordEncoder passwordEncoder;
 
     @Resource
-    private OAuth2ResourceOwnerPasswordAuthenticationProvider resourceOwnerPasswordAuthenticationProvider;
+    private UserDetailsServiceImpl userDetailService;
 
     @Resource
-    public DaoAuthenticationProvider daoAuthenticationProvider;
+    public JWKSource<SecurityContext> jwkSource;
 
     @Resource
-    private JwtEncoder jwtEncoder;
+    private OAuth2AuthorizationService authorizationService;
 
     @Bean
     public JdbcTemplate jdbcTemplate(DataSource dataSource) {
@@ -102,7 +107,7 @@ public class AuthorizationServerConfig {
                 .jwkSetEndpoint("/oauth2/v1/jwks")
                 .oidcUserInfoEndpoint("/connect/v1/userinfo")
                 .oidcClientRegistrationEndpoint("/connect/v1/register")
-                .issuer("http://127.0.0.1:18000/")
+                // .issuer("http://127.0.0.1:18000/")
                 .build();
     }
 
@@ -119,11 +124,12 @@ public class AuthorizationServerConfig {
         LOGGER.info(">>> 自定义 AuthorizationServerSecurityFilterChain 配置");
         OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer();
         // custom converter and provider
+        OAuth2TokenGenerator<? extends OAuth2Token> customizerTokenGenerator = tokenGenerator();
         authorizationServerConfigurer.tokenEndpoint(tokenEndpoint ->
                 tokenEndpoint
                         .accessTokenRequestConverter(new OAuth2ResourceOwnerPasswordAuthenticationConverter())
-                        .authenticationProvider(resourceOwnerPasswordAuthenticationProvider)
-                        .authenticationProvider(daoAuthenticationProvider));
+                        .authenticationProviders(authenticationProviders -> addCustomOAuth2GrantAuthenticationProvider(authenticationProviders, customizerTokenGenerator))
+        );
         //
         RequestMatcher endpointsMatcher = authorizationServerConfigurer.getEndpointsMatcher();
         http.requestMatcher(endpointsMatcher)
@@ -141,16 +147,40 @@ public class AuthorizationServerConfig {
         return http.build();
     }
 
+    /**
+     * 自定义授权模式实现
+     * <p>
+     * 1.密码模式
+     */
+    private void addCustomOAuth2GrantAuthenticationProvider(List<AuthenticationProvider> authenticationProviders, OAuth2TokenGenerator<? extends OAuth2Token> tokenGenerator) {
+        LOGGER.info(">>> 自定义 addCustomOAuth2GrantAuthenticationProvider 模式");
 
-    @Bean
+        OAuth2ResourceOwnerPasswordAuthenticationProvider resourceOwnerPasswordAuthenticationProvider =
+                new OAuth2ResourceOwnerPasswordAuthenticationProvider(userDetailService, passwordEncoder, authorizationService, tokenGenerator);
+
+        DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider();
+        daoAuthenticationProvider.setPasswordEncoder(passwordEncoder);
+        daoAuthenticationProvider.setUserDetailsService(userDetailService);
+
+        // 密码模式
+        authenticationProviders.add(resourceOwnerPasswordAuthenticationProvider);
+        // 自定义Dao模式
+        authenticationProviders.add(daoAuthenticationProvider);
+    }
+
+    /**
+     * 自定义生成Token机制
+     *
+     * @return OAuth2TokenGenerator
+     */
     public OAuth2TokenGenerator<? extends OAuth2Token> tokenGenerator() {
         LOGGER.info(">>> 自定义 OAuth2TokenGenerator 配置");
-        JwtGenerator jwtGenerator = new JwtGenerator(jwtEncoder);
+        JwtEncoder jwtEncoder = new NimbusJwtEncoder(jwkSource);
         OAuth2AccessTokenGenerator accessTokenGenerator = new OAuth2AccessTokenGenerator();
         OAuth2RefreshTokenGenerator refreshTokenGenerator = new OAuth2RefreshTokenGenerator();
         OAuth2CustomizeAccessTokenGenerator customizeAccessTokenGenerator = new OAuth2CustomizeAccessTokenGenerator(jwtEncoder);
         // 这里是有顺序的，自定义的需要放在最前面
-        return new DelegatingOAuth2TokenGenerator(customizeAccessTokenGenerator, jwtGenerator, accessTokenGenerator, refreshTokenGenerator);
+        return new DelegatingOAuth2TokenGenerator(customizeAccessTokenGenerator, accessTokenGenerator, refreshTokenGenerator);
     }
 
     /**
