@@ -1,7 +1,7 @@
 package io.github.panxiaochao.security.handler;
 
 import io.github.panxiaochao.common.response.ResultResponse;
-import io.github.panxiaochao.jwt.utils.JacksonUtils;
+import io.github.panxiaochao.common.utils.JacksonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -41,7 +41,7 @@ public class CustomAuthenticationFailureHandler implements AuthenticationFailure
             msg = "账户被禁用，请联系管理员!";
         }
         PrintWriter out = response.getWriter();
-        out.write(JacksonUtils.toString(ResultResponse.error(HttpServletResponse.SC_FORBIDDEN, msg)));
+        out.write(JacksonUtil.toString(ResultResponse.error(HttpServletResponse.SC_FORBIDDEN, msg)));
         out.flush();
         out.close();
     }

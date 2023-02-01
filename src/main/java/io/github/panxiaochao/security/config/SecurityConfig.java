@@ -47,7 +47,7 @@ public class SecurityConfig {
      */
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return PasswordEncoderFactory.getInstance(selfProperties.getAlgorithm());
+        return PasswordEncoderFactory.createDelegatingPasswordEncoder();
     }
 
     /**

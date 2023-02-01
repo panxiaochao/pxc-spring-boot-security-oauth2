@@ -87,10 +87,6 @@
         </dependency>
         <dependency>
             <groupId>io.github.panxiaochao</groupId>
-            <artifactId>pxc-jwt-commons-spring-boot-starter</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.github.panxiaochao</groupId>
             <artifactId>pxc-dynamic-datasource-spring-boot-starter</artifactId>
         </dependency>
         <dependency>

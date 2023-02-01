@@ -1,9 +1,8 @@
 package io.github.panxiaochao.security.crypto;
 
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.crypto.password.Pbkdf2PasswordEncoder;
+import org.springframework.security.crypto.password.*;
 import org.springframework.security.crypto.scrypt.SCryptPasswordEncoder;
 
 import java.util.HashMap;
@@ -14,53 +13,58 @@ import java.util.Map;
  */
 public class PasswordEncoderFactory {
 
-    public static final String PWD_ENCODER_BCRYPT = "bcrypt";
+    private static final Map<String, PasswordEncoder> ENCODERS = new HashMap<>();
 
-    public static final String PWD_ENCODER_SCRYPT = "scrypt";
-
-    public static final String PWD_ENCODER_PBKDF2 = "pbkdf2";
-
-    public static final String PWD_CUSTOM_ENCODER_MD5 = "MD5";
-
-    public static final String PWD_ENCODER_SHA_1 = "SHA-1";
-
-    public static final String PWD_ENCODER_SHA_256 = "SHA-256";
-
-    public static final String PWD_ENCODER_SHA_384 = "SHA-384";
-
-    public static final String PWD_ENCODER_SHA_512 = "SHA-512";
-
-
-    public static final String PWD_ENCODER_SHA256 = "sha256";
-
-    /*
-     * 当前版本5新增支持加密方式： bcrypt - BCryptPasswordEncoder (Also used for encoding)
-     * ldap - LdapShaPasswordEncoder MD4 - Md4PasswordEncoder MD5 - new
-     * MessageDigestPasswordEncoder("MD5") noop - NoOpPasswordEncoder pbkdf2 -
-     * Pbkdf2PasswordEncoder scrypt - SCryptPasswordEncoder SHA-1 - new
-     * MessageDigestPasswordEncoder("SHA-1") SHA-256 - new
-     * MessageDigestPasswordEncoder("SHA-256") sha256 - StandardPasswordEncoder
-     */
-
-    private static final Map<String, PasswordEncoder> PASSWORD_ENCODERS = new HashMap<>();
 
     static {
-        PASSWORD_ENCODERS.put(PWD_ENCODER_BCRYPT, new BCryptPasswordEncoder());
-        PASSWORD_ENCODERS.put(PWD_ENCODER_SCRYPT, new SCryptPasswordEncoder());
-        PASSWORD_ENCODERS.put(PWD_ENCODER_PBKDF2, new Pbkdf2PasswordEncoder());
-        PASSWORD_ENCODERS.put(PWD_CUSTOM_ENCODER_MD5,
-                new CusMessageDigestPasswordEncoder(AlgorithmEnum.MD5.getName()));
-        PASSWORD_ENCODERS.put(PWD_ENCODER_SHA_1,
-                new CusMessageDigestPasswordEncoder(AlgorithmEnum.SHA1.getName()));
-        PASSWORD_ENCODERS.put(PWD_ENCODER_SHA_256,
-                new CusMessageDigestPasswordEncoder(AlgorithmEnum.SHA256.getName()));
-        PASSWORD_ENCODERS.put(PWD_ENCODER_SHA_384,
-                new CusMessageDigestPasswordEncoder(AlgorithmEnum.SHA384.getName()));
-        PASSWORD_ENCODERS.put(PWD_ENCODER_SHA_512,
-                new CusMessageDigestPasswordEncoder(AlgorithmEnum.SHA512.getName()));
+        ENCODERS.put(PasswordEncoderEnum.LDAP.getName(), new LdapShaPasswordEncoder());
+        ENCODERS.put(PasswordEncoderEnum.NOOP.getName(), NoOpPasswordEncoder.getInstance());
+        ENCODERS.put(PasswordEncoderEnum.BCRYPT.getName(), new BCryptPasswordEncoder());
+        ENCODERS.put(PasswordEncoderEnum.SCRYPT.getName(), new SCryptPasswordEncoder());
+        ENCODERS.put(PasswordEncoderEnum.PBKDF2.getName(), new Pbkdf2PasswordEncoder());
+        ENCODERS.put(PasswordEncoderEnum.MD4.getName(), new Md4PasswordEncoder());
+        ENCODERS.put(PasswordEncoderEnum.MD5.getName(),
+                new MessageDigestPasswordEncoder(PasswordEncoderEnum.MD5.getName()));
+        ENCODERS.put(PasswordEncoderEnum.SHA_1.getName(),
+                new MessageDigestPasswordEncoder(PasswordEncoderEnum.SHA_1.getName()));
+        ENCODERS.put(PasswordEncoderEnum.SHA_256.getName(),
+                new MessageDigestPasswordEncoder(PasswordEncoderEnum.SHA_256.getName()));
+        ENCODERS.put(PasswordEncoderEnum.SHA_384.getName(),
+                new MessageDigestPasswordEncoder(PasswordEncoderEnum.SHA_384.getName()));
+        ENCODERS.put(PasswordEncoderEnum.SHA_512.getName(),
+                new MessageDigestPasswordEncoder(PasswordEncoderEnum.SHA_512.getName()));
+        ENCODERS.put(PasswordEncoderEnum.SHA256.getName(), new StandardPasswordEncoder());
+        ENCODERS.put(PasswordEncoderEnum.ARGON2.getName(), new Argon2PasswordEncoder());
     }
 
-    private PasswordEncoderFactory() {
+    /**
+     * Creates a {@link DelegatingPasswordEncoder} with default mappings. Additional
+     * mappings may be added and the encoding will be updated to conform with best
+     * practices. However, due to the nature of {@link DelegatingPasswordEncoder} the
+     * updates should not impact users. The mappings current are:
+     *
+     * <ul>
+     * <li>bcrypt - {@link BCryptPasswordEncoder} (Also used for encoding)</li>
+     * <li>ldap -
+     * {@link org.springframework.security.crypto.password.LdapShaPasswordEncoder}</li>
+     * <li>MD4 -
+     * {@link org.springframework.security.crypto.password.Md4PasswordEncoder}</li>
+     * <li>MD5 - {@code new MessageDigestPasswordEncoder("MD5")}</li>
+     * <li>noop -
+     * {@link org.springframework.security.crypto.password.NoOpPasswordEncoder}</li>
+     * <li>pbkdf2 - {@link Pbkdf2PasswordEncoder}</li>
+     * <li>scrypt - {@link SCryptPasswordEncoder}</li>
+     * <li>SHA-1 - {@code new MessageDigestPasswordEncoder("SHA-1")}</li>
+     * <li>SHA-256 - {@code new MessageDigestPasswordEncoder("SHA-256")}</li>
+     * <li>sha256 -
+     * {@link org.springframework.security.crypto.password.StandardPasswordEncoder}</li>
+     * <li>argon2 - {@link Argon2PasswordEncoder}</li>
+     * </ul>
+     *
+     * @return the {@link PasswordEncoder} to use
+     */
+    public static PasswordEncoder createDelegatingPasswordEncoder() {
+        return new DelegatingPasswordEncoder(PasswordEncoderEnum.MD5.getName(), ENCODERS);
     }
 
     /**
@@ -69,7 +73,7 @@ public class PasswordEncoderFactory {
      * @param encoderId 加密方式
      * @return PasswordEncoder
      */
-    public static PasswordEncoder getInstance(String encoderId) {
-        return new DelegatingPasswordEncoder(encoderId, PASSWORD_ENCODERS);
+    public static PasswordEncoder createDelegatingPasswordEncoder(String encoderId) {
+        return new DelegatingPasswordEncoder(encoderId, ENCODERS);
     }
 }

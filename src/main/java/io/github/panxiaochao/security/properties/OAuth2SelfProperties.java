@@ -1,6 +1,6 @@
 package io.github.panxiaochao.security.properties;
 
-import io.github.panxiaochao.security.crypto.AlgorithmEnum;
+import io.github.panxiaochao.security.crypto.PasswordEncoderEnum;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.beans.factory.InitializingBean;
@@ -35,9 +35,9 @@ public class OAuth2SelfProperties implements InitializingBean {
     private String clientServer;
 
     /**
-     * algorithm
+     * passwordEncoder 密码加密模式
      */
-    private String algorithm = AlgorithmEnum.MD5.getName();
+    private String passwordEncoder = PasswordEncoderEnum.MD5.getName();
 
     /**
      * accessTokenTimeToLive, default seconds

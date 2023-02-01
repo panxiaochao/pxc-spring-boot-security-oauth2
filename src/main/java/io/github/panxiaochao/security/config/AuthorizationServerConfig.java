@@ -2,11 +2,6 @@ package io.github.panxiaochao.security.config;
 
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nimbusds.jose.jwk.JWKSet;
-import com.nimbusds.jose.jwk.RSAKey;
-import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
-import com.nimbusds.jose.jwk.source.JWKSource;
-import com.nimbusds.jose.proc.SecurityContext;
 import io.github.panxiaochao.security.constant.GlobalSecurityConstants;
 import io.github.panxiaochao.security.core.authorization.password.OAuth2ResourceOwnerPasswordAuthenticationConverter;
 import io.github.panxiaochao.security.core.authorization.password.OAuth2ResourceOwnerPasswordAuthenticationProvider;
@@ -15,7 +10,6 @@ import io.github.panxiaochao.security.core.token.OAuth2CustomizeAccessTokenGener
 import io.github.panxiaochao.security.handler.CustomAccessDeniedHandler;
 import io.github.panxiaochao.security.jackson2.mixin.OAuth2ResourceOwnerPasswordMixin;
 import io.github.panxiaochao.security.properties.OAuth2SelfProperties;
-import io.github.panxiaochao.security.utils.KeyGeneratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
@@ -26,20 +20,21 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.lob.DefaultLobHandler;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.jackson2.SecurityJackson2Modules;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.OAuth2Token;
 import org.springframework.security.oauth2.core.oidc.OidcScopes;
-import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames;
-import org.springframework.security.oauth2.jwt.*;
-import org.springframework.security.oauth2.server.authorization.*;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationConsentService;
+import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationService;
+import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationConsentService;
+import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.client.JdbcRegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
-import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.oauth2.server.authorization.jackson2.OAuth2AuthorizationServerJackson2Module;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
@@ -53,13 +48,9 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 
 import javax.annotation.Resource;
 import javax.sql.DataSource;
-import java.security.KeyPair;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -85,6 +76,9 @@ public class AuthorizationServerConfig {
 
     @Resource
     public DaoAuthenticationProvider daoAuthenticationProvider;
+
+    @Resource
+    private JwtEncoder jwtEncoder;
 
     @Bean
     public JdbcTemplate jdbcTemplate(DataSource dataSource) {
@@ -147,16 +141,14 @@ public class AuthorizationServerConfig {
         return http.build();
     }
 
+
     @Bean
-    public OAuth2TokenGenerator<? extends OAuth2Token> tokenGenerator(JwtEncoder jwtEncoder,
-                                                                      OAuth2TokenCustomizer<OAuth2TokenClaimsContext> accessTokenCustomizer) {
+    public OAuth2TokenGenerator<? extends OAuth2Token> tokenGenerator() {
         LOGGER.info(">>> 自定义 OAuth2TokenGenerator 配置");
         JwtGenerator jwtGenerator = new JwtGenerator(jwtEncoder);
         OAuth2AccessTokenGenerator accessTokenGenerator = new OAuth2AccessTokenGenerator();
-        accessTokenGenerator.setAccessTokenCustomizer(accessTokenCustomizer);
         OAuth2RefreshTokenGenerator refreshTokenGenerator = new OAuth2RefreshTokenGenerator();
-        OAuth2CustomizeAccessTokenGenerator customizeAccessTokenGenerator = new OAuth2CustomizeAccessTokenGenerator();
-        customizeAccessTokenGenerator.setAccessTokenCustomizer(accessTokenCustomizer);
+        OAuth2CustomizeAccessTokenGenerator customizeAccessTokenGenerator = new OAuth2CustomizeAccessTokenGenerator(jwtEncoder);
         // 这里是有顺序的，自定义的需要放在最前面
         return new DelegatingOAuth2TokenGenerator(customizeAccessTokenGenerator, jwtGenerator, accessTokenGenerator, refreshTokenGenerator);
     }
@@ -273,41 +265,6 @@ public class AuthorizationServerConfig {
     }
 
     /**
-     * @return JWKSource
-     */
-    @Bean
-    public JWKSource<SecurityContext> jwkSource() {
-        KeyPair keyPair = KeyGeneratorUtils.generateRsaKey(selfProperties.getSeed());
-        RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
-        RSAPrivateKey privateKey = (RSAPrivateKey) keyPair.getPrivate();
-        RSAKey rsaKey = new RSAKey
-                .Builder(publicKey)
-                .privateKey(privateKey)
-                .keyID(UUID.randomUUID().toString())
-                .build();
-        JWKSet jwkSet = new JWKSet(rsaKey);
-        return new ImmutableJWKSet<>(jwkSet);
-    }
-
-    /**
-     * @param jwkSource jwkSource
-     * @return JwtDecoder
-     */
-    @Bean
-    public JwtDecoder jwtDecoder(JWKSource<SecurityContext> jwkSource) {
-        return OAuth2AuthorizationServerConfiguration.jwtDecoder(jwkSource);
-    }
-
-    /**
-     * @param jwkSource jwkSource
-     * @return JwtEncoder
-     */
-    @Bean
-    public JwtEncoder jwtEncoder(JWKSource<SecurityContext> jwkSource) {
-        return new NimbusJwtEncoder(jwkSource);
-    }
-
-    /**
      * JWT（Json Web Token）的配置项：TTL、是否复用refreshToken等等
      *
      * @return TokenSettings
@@ -318,6 +275,7 @@ public class AuthorizationServerConfig {
                 .reuseRefreshTokens(true)
                 .accessTokenTimeToLive(Duration.ofSeconds(selfProperties.getAccessTokenTimeToLive()))
                 .refreshTokenTimeToLive(Duration.ofSeconds(selfProperties.getRefreshTokenTimeToLive()))
+                .idTokenSignatureAlgorithm(SignatureAlgorithm.RS512)
                 .build();
     }
 
@@ -332,43 +290,5 @@ public class AuthorizationServerConfig {
                 // 是否需要用户授权确认
                 .requireAuthorizationConsent(requireAuthorizationConsent)
                 .build();
-    }
-
-    @Bean
-    public OAuth2TokenCustomizer<OAuth2TokenClaimsContext> accessTokenCustomizer() {
-        return context -> {
-            OAuth2TokenClaimsSet.Builder claims = context.getClaims();
-            // Customize claims
-            LOGGER.info("accessTokenCustomizer claims");
-        };
-    }
-
-    /**
-     * 自定义JWT的header和claims
-     *
-     * @return JWT
-     */
-    @Bean
-    public OAuth2TokenCustomizer<JwtEncodingContext> jwtCustomizer() {
-        return context -> {
-            LOGGER.info("jwtCustomizer claims");
-            JwsHeader.Builder headers = context.getJwsHeader();
-            JwtClaimsSet.Builder claims = context.getClaims();
-            Authentication principal = context.getPrincipal();
-            OAuth2Authorization authorization = context.getAuthorization();
-            Set<String> authorizedScopes = context.getAuthorizedScopes();
-            Authentication authorizationGrant = context.getAuthorizationGrant();
-            RegisteredClient registeredClient = context.getRegisteredClient();
-            if (context.getTokenType().equals(OAuth2TokenType.ACCESS_TOKEN)) {
-                // Customize headers/claims for access_token
-
-            } else if (context.getTokenType().getValue().equals(OidcParameterNames.ID_TOKEN)) {
-                // Customize headers/claims for id_token
-
-            } else if (context.getTokenType().getValue().equals(OAuth2TokenType.REFRESH_TOKEN)) {
-                // Customize headers/claims for refresh_token
-
-            }
-        };
     }
 }
