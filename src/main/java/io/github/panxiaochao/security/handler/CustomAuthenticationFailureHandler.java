@@ -8,12 +8,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.io.PrintWriter;
 
 /**
@@ -24,8 +25,9 @@ public class CustomAuthenticationFailureHandler implements AuthenticationFailure
 
     @Override
     public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response,
-                                        AuthenticationException exception) throws IOException, ServletException {
-        log.info("登录失败，异常：{}", exception.getLocalizedMessage());
+                                        AuthenticationException exception) {
+        String username = request.getParameter(OAuth2ParameterNames.USERNAME);
+        log.error("{}登录失败，异常：", username, exception);
         response.setStatus(HttpStatus.OK.value());
         response.setHeader("Content-Type", "application/json;charset=UTF-8");
         String msg = "";
@@ -39,10 +41,17 @@ public class CustomAuthenticationFailureHandler implements AuthenticationFailure
             msg = "账户过期，请联系管理员!";
         } else if (exception instanceof DisabledException) {
             msg = "账户被禁用，请联系管理员!";
+        } else if (exception instanceof OAuth2AuthenticationException) {
+            OAuth2Error error = ((OAuth2AuthenticationException) exception).getError();
+            msg = error.getDescription();
         }
-        PrintWriter out = response.getWriter();
-        out.write(JacksonUtil.toString(ResultResponse.error(HttpServletResponse.SC_FORBIDDEN, msg)));
-        out.flush();
-        out.close();
+        try {
+            PrintWriter out = response.getWriter();
+            out.write(JacksonUtil.toString(ResultResponse.error(HttpServletResponse.SC_FORBIDDEN, msg)));
+            out.flush();
+            out.close();
+        } catch (Exception e) {
+            log.error("返回错误信息失败", e);
+        }
     }
 }
