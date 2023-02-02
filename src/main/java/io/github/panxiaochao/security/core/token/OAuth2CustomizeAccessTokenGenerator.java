@@ -18,9 +18,7 @@ import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
-import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
@@ -50,7 +48,6 @@ public class OAuth2CustomizeAccessTokenGenerator implements OAuth2TokenGenerator
     @Override
     public Jwt generate(OAuth2TokenContext context) {
         // TOKEN_TYPE: CUSTOMIZE_ACCESS_TOKEN
-        // TODO: 2022/12/22 token少了
         if (context.getTokenType() == null ||
                 (!GlobalSecurityConstants.CUSTOMIZE_ACCESS_TOKEN.equals(context.getTokenType()) &&
                         !OidcParameterNames.ID_TOKEN.equals(context.getTokenType().getValue()))) {
@@ -67,7 +64,7 @@ public class OAuth2CustomizeAccessTokenGenerator implements OAuth2TokenGenerator
         }
         RegisteredClient registeredClient = context.getRegisteredClient();
         // China UTC+8 Instant
-        Instant issuedAt = Instant.now(Clock.system(ZoneId.of("Asia/Shanghai")));
+        Instant issuedAt = Instant.now();
         Instant expiresAt;
         JwsAlgorithm jwsAlgorithm = SignatureAlgorithm.RS256;
         if (registeredClient.getTokenSettings().getIdTokenSignatureAlgorithm() != null) {

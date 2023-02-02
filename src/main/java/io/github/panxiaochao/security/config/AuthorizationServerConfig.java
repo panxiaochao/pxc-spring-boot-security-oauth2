@@ -10,6 +10,7 @@ import io.github.panxiaochao.security.core.authorization.password.OAuth2Resource
 import io.github.panxiaochao.security.core.authorization.password.OAuth2ResourceOwnerPasswordAuthenticationToken;
 import io.github.panxiaochao.security.core.token.OAuth2CustomizeAccessTokenGenerator;
 import io.github.panxiaochao.security.handler.CustomAccessDeniedHandler;
+import io.github.panxiaochao.security.handler.CustomAuthenticationFailureHandler;
 import io.github.panxiaochao.security.jackson2.mixin.OAuth2ResourceOwnerPasswordMixin;
 import io.github.panxiaochao.security.properties.OAuth2SelfProperties;
 import io.github.panxiaochao.security.service.UserDetailsServiceImpl;
@@ -123,27 +124,37 @@ public class AuthorizationServerConfig {
     public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
         LOGGER.info(">>> 自定义 AuthorizationServerSecurityFilterChain 配置");
         OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer();
-        // custom converter and provider
-        OAuth2TokenGenerator<? extends OAuth2Token> customizerTokenGenerator = tokenGenerator();
-        authorizationServerConfigurer.tokenEndpoint(tokenEndpoint ->
-                tokenEndpoint
-                        .accessTokenRequestConverter(new OAuth2ResourceOwnerPasswordAuthenticationConverter())
-                        .authenticationProviders(authenticationProviders -> addCustomOAuth2GrantAuthenticationProvider(authenticationProviders, customizerTokenGenerator))
-        );
         //
         RequestMatcher endpointsMatcher = authorizationServerConfigurer.getEndpointsMatcher();
         http.requestMatcher(endpointsMatcher)
                 .authorizeRequests(authorizeRequests -> authorizeRequests.anyRequest().authenticated())
                 .csrf(csrf -> csrf.ignoringRequestMatchers(endpointsMatcher))
+                // 授权异常处理
+                .exceptionHandling(exception -> {
+                    exception
+                            .accessDeniedHandler(new CustomAccessDeniedHandler())
+                            // .authenticationEntryPoint(new CustomAuthenticationEntryPoint())
+                            // 使用授权码模式登录
+                            .authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login"));
+                })
                 .apply(authorizationServerConfigurer);
-        // 授权异常处理
-        http.exceptionHandling(exception -> {
-            exception
-                    .accessDeniedHandler(new CustomAccessDeniedHandler())
-                    // .authenticationEntryPoint(new CustomAuthenticationEntryPoint())
-                    // 使用授权码模式登录
-                    .authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login"));
-        });
+        // custom converter and provider and tokenGenerator
+        OAuth2TokenGenerator<? extends OAuth2Token> customizerTokenGenerator = tokenGenerator();
+        authorizationServerConfigurer.tokenGenerator(customizerTokenGenerator);
+        authorizationServerConfigurer.tokenEndpoint(tokenEndpoint ->
+                        tokenEndpoint
+                                .accessTokenRequestConverter(new OAuth2ResourceOwnerPasswordAuthenticationConverter())
+                                // 登录失败处理器
+                                .errorResponseHandler(new CustomAuthenticationFailureHandler())
+                )
+                // 客户端认证
+                .clientAuthentication(clientAuthentication ->
+                        clientAuthentication
+                                .authenticationProviders(authenticationProviders ->
+                                        customizerGrantAuthenticationProviders(authenticationProviders, customizerTokenGenerator))
+                                // 登录失败处理器
+                                .errorResponseHandler(new CustomAuthenticationFailureHandler())
+                );
         return http.build();
     }
 
@@ -152,7 +163,7 @@ public class AuthorizationServerConfig {
      * <p>
      * 1.密码模式
      */
-    private void addCustomOAuth2GrantAuthenticationProvider(List<AuthenticationProvider> authenticationProviders, OAuth2TokenGenerator<? extends OAuth2Token> tokenGenerator) {
+    private void customizerGrantAuthenticationProviders(List<AuthenticationProvider> authenticationProviders, OAuth2TokenGenerator<? extends OAuth2Token> tokenGenerator) {
         LOGGER.info(">>> 自定义 addCustomOAuth2GrantAuthenticationProvider 模式");
 
         OAuth2ResourceOwnerPasswordAuthenticationProvider resourceOwnerPasswordAuthenticationProvider =
@@ -176,11 +187,12 @@ public class AuthorizationServerConfig {
     public OAuth2TokenGenerator<? extends OAuth2Token> tokenGenerator() {
         LOGGER.info(">>> 自定义 OAuth2TokenGenerator 配置");
         JwtEncoder jwtEncoder = new NimbusJwtEncoder(jwkSource);
+        JwtGenerator jwtGenerator = new JwtGenerator(jwtEncoder);
         OAuth2AccessTokenGenerator accessTokenGenerator = new OAuth2AccessTokenGenerator();
         OAuth2RefreshTokenGenerator refreshTokenGenerator = new OAuth2RefreshTokenGenerator();
         OAuth2CustomizeAccessTokenGenerator customizeAccessTokenGenerator = new OAuth2CustomizeAccessTokenGenerator(jwtEncoder);
         // 这里是有顺序的，自定义的需要放在最前面
-        return new DelegatingOAuth2TokenGenerator(customizeAccessTokenGenerator, accessTokenGenerator, refreshTokenGenerator);
+        return new DelegatingOAuth2TokenGenerator(customizeAccessTokenGenerator, jwtGenerator, accessTokenGenerator, refreshTokenGenerator);
     }
 
     /**
