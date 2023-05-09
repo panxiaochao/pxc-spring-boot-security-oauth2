@@ -2,8 +2,8 @@
 
 ### current version
 
-- Spring Boot 2.7.6
-- spring-security-oauth2-authorization-server 0.4.0
+- Spring Boot 2.7.11
+- spring-security-oauth2-authorization-server 0.4.1
 - jdk >= 1.8
 
 ### next code plan

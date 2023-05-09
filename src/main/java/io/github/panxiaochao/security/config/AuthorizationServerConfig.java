@@ -198,7 +198,7 @@ public class AuthorizationServerConfig {
     /**
      * （必需）负责注册的 Client 信息
      *
-     * @return
+     * @return RegisteredClientRepository
      */
     @Bean
     public RegisteredClientRepository registeredClientRepository(JdbcTemplate jdbcTemplate) {
@@ -222,7 +222,7 @@ public class AuthorizationServerConfig {
     /**
      * 创建客户端秘钥记录
      *
-     * @return
+     * @return RegisteredClient
      */
     private RegisteredClient createRegisteredClient() {
         return RegisteredClient

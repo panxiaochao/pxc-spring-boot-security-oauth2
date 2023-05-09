@@ -14,7 +14,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
-import javax.annotation.Resource;
+import java.util.Objects;
 
 /**
  * {@code SecurityConfig}
@@ -28,9 +28,6 @@ import javax.annotation.Resource;
 public class SecurityConfig {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SecurityConfig.class);
-
-    @Resource
-    private OAuth2SelfProperties selfProperties;
 
     /**
      * 自定义 UserDetailsService
@@ -46,16 +43,18 @@ public class SecurityConfig {
      * @return PasswordEncoder
      */
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return PasswordEncoderFactory.createDelegatingPasswordEncoder();
+    public PasswordEncoder passwordEncoder(OAuth2SelfProperties oauth2SelfProperties) {
+        return Objects.isNull(oauth2SelfProperties.getPasswordEncoder()) ?
+                PasswordEncoderFactory.createDelegatingPasswordEncoder() :
+                PasswordEncoderFactory.createDelegatingPasswordEncoder(oauth2SelfProperties.getPasswordEncoder().getName());
     }
 
     /**
      * Security过滤器链
      *
-     * @param httpSecurity
-     * @return
-     * @throws Exception
+     * @param httpSecurity httpSecurity
+     * @return SecurityFilterChain
+     * @throws Exception throws exception
      */
     @Bean
     public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity httpSecurity) throws Exception {

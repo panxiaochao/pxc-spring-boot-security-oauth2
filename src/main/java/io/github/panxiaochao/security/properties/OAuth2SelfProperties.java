@@ -37,7 +37,7 @@ public class OAuth2SelfProperties implements InitializingBean {
     /**
      * passwordEncoder 密码加密模式
      */
-    private String passwordEncoder = PasswordEncoderEnum.MD5.getName();
+    private PasswordEncoderEnum passwordEncoder;
 
     /**
      * accessTokenTimeToLive, default seconds

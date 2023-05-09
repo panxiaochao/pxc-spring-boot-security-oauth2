@@ -73,8 +73,8 @@ public final class OAuth2ResourceOwnerPasswordAuthenticationProvider implements 
 
     /**
      * @param authentication the authentication request object.
-     * @return
-     * @throws AuthenticationException
+     * @return Authentication
+     * @throws AuthenticationException throws authenticationException
      */
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
@@ -189,7 +189,7 @@ public final class OAuth2ResourceOwnerPasswordAuthenticationProvider implements 
         // requestAdditionalParameters.get(CusOAuth2ParameterNames.IDENTITY_TYPE).toString();
         UserDetails userDetails = userDetailService.loadUserByUsername(username);
         if (userDetails == null) {
-            OAuth2EndpointUtils.throwError(OAuth2ErrorCodes.SERVER_ERROR, "Bad Credentials: User Is Empty.", null);
+            OAuth2EndpointUtils.throwError(OAuth2ErrorCodes.SERVER_ERROR, "Bad Credentials: user is empty.", null);
         }
         if (!passwordEncoder.matches(password, userDetails.getPassword())) {
             OAuth2EndpointUtils.throwError(OAuth2ErrorCodes.SERVER_ERROR, "password does not match.", null);

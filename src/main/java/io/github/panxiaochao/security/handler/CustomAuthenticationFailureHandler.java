@@ -1,6 +1,6 @@
 package io.github.panxiaochao.security.handler;
 
-import io.github.panxiaochao.common.response.ResultResponse;
+import io.github.panxiaochao.common.response.R;
 import io.github.panxiaochao.common.utils.JacksonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,7 +47,7 @@ public class CustomAuthenticationFailureHandler implements AuthenticationFailure
         }
         try {
             PrintWriter out = response.getWriter();
-            out.write(JacksonUtil.toString(ResultResponse.error(HttpServletResponse.SC_FORBIDDEN, msg)));
+            out.write(JacksonUtil.toString(R.fail(HttpServletResponse.SC_FORBIDDEN, msg, null)));
             out.flush();
             out.close();
         } catch (Exception e) {

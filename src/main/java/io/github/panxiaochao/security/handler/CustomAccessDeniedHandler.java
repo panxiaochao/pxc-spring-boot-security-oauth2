@@ -1,6 +1,6 @@
 package io.github.panxiaochao.security.handler;
 
-import io.github.panxiaochao.common.response.ResultResponse;
+import io.github.panxiaochao.common.response.R;
 import io.github.panxiaochao.common.utils.JacksonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +28,7 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
         response.setStatus(HttpStatus.FORBIDDEN.value());
         response.setHeader("Content-Type", "application/json;charset=UTF-8");
         PrintWriter out = response.getWriter();
-        out.write(JacksonUtil.toString(ResultResponse.error(HttpStatus.FORBIDDEN.value(), "OAUTH_TOKEN_DENIED")));
+        out.write(JacksonUtil.toString(R.fail(HttpStatus.FORBIDDEN.value(), "OAUTH_TOKEN_DENIED", null)));
         out.flush();
         out.close();
     }
