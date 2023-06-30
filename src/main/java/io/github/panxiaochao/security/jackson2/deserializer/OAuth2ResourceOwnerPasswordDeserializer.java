@@ -1,7 +1,6 @@
 package io.github.panxiaochao.security.jackson2.deserializer;
 
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
@@ -29,16 +28,20 @@ public class OAuth2ResourceOwnerPasswordDeserializer extends JsonDeserializer<OA
     };
 
     @Override
-    public OAuth2ResourceOwnerPasswordAuthenticationToken deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException, JsonProcessingException {
-        ObjectMapper mapper = (ObjectMapper) jp.getCodec();
-        JsonNode jsonNode = mapper.readTree(jp);
-        String username = readJsonNode(jsonNode, "name").asText();
-        boolean authenticated = readJsonNode(jsonNode, "authenticated").asBoolean();
-        JsonNode principalNode = readJsonNode(jsonNode, "principal");
+    public OAuth2ResourceOwnerPasswordAuthenticationToken deserialize(JsonParser parser, DeserializationContext ctxt) throws IOException {
+        ObjectMapper mapper = (ObjectMapper) parser.getCodec();
+        JsonNode root = mapper.readTree(parser);
+        return deserialize(parser, mapper, root);
+    }
+
+    private OAuth2ResourceOwnerPasswordAuthenticationToken deserialize(JsonParser parser, ObjectMapper mapper, JsonNode root) throws IOException {
+        String username = readJsonNode(root, "name").asText();
+        boolean authenticated = readJsonNode(root, "authenticated").asBoolean();
+        JsonNode principalNode = readJsonNode(root, "principal");
         Object principal = (!principalNode.isObject()) ? principalNode.asText() : mapper.readValue(principalNode.traverse(mapper), Object.class);
-        List<GrantedAuthority> authorities = mapper.readValue(readJsonNode(jsonNode, "authorities").traverse(mapper), GRANTED_AUTHORITY_LIST);
-        Set<String> scopes = mapper.readValue(readJsonNode(jsonNode, "scopes").traverse(mapper), GRANTED_SCOPES_SET);
-        JsonNode additionalParametersNode = readJsonNode(jsonNode, "additionalParameters");
+        List<GrantedAuthority> authorities = mapper.readValue(readJsonNode(root, "authorities").traverse(mapper), GRANTED_AUTHORITY_LIST);
+        Set<String> scopes = mapper.readValue(readJsonNode(root, "scopes").traverse(mapper), GRANTED_SCOPES_SET);
+        JsonNode additionalParametersNode = readJsonNode(root, "additionalParameters");
         Map<String, Object> additionalParameters =
                 (!additionalParametersNode.isObject()) ? null : mapper.readValue(additionalParametersNode.traverse(mapper), GRANTED_ADDITIONALPARAMETERS_MAP);
 
@@ -50,11 +53,12 @@ public class OAuth2ResourceOwnerPasswordDeserializer extends JsonDeserializer<OA
                         scopes,
                         additionalParameters
                 );
-        resourceOwnerPasswordAuthenticationToken.setDetails(readJsonNode(jsonNode, "details"));
+        resourceOwnerPasswordAuthenticationToken.setDetails(readJsonNode(root, "details"));
         return resourceOwnerPasswordAuthenticationToken;
     }
 
-    private JsonNode readJsonNode(JsonNode jsonNode, String field) {
-        return jsonNode.has(field) ? jsonNode.get(field) : MissingNode.getInstance();
+
+    private JsonNode readJsonNode(JsonNode root, String field) {
+        return root.has(field) ? root.get(field) : MissingNode.getInstance();
     }
 }
