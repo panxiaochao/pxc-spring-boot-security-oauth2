@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.github.panxiaochao</groupId>
         <artifactId>pxc-spring-boot-starter-parent</artifactId>
-        <version>2022-2.7-1.3</version>
+        <version>2022-2.7-1.4</version>
     </parent>
 
     <artifactId>pxc-spring-boot-security-oauth2</artifactId>
@@ -15,7 +15,7 @@
     <packaging>jar</packaging>
 
     <properties>
-        <spring-security-oauth2-authorization.version>0.4.2</spring-security-oauth2-authorization.version>
+        <spring-security-oauth2-authorization.version>0.4.3</spring-security-oauth2-authorization.version>
         <nimbus-jose-jwt.version>9.25.6</nimbus-jose-jwt.version>
         <mybatis-plus-boot-starter.version>3.5.3.1</mybatis-plus-boot-starter.version>
     </properties>
