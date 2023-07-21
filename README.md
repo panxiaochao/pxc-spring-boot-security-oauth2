@@ -6,9 +6,6 @@
 - spring-security-oauth2-authorization-server 0.4.1
 - jdk >= 1.8
 
-### next code plan
+### 新版本迁移
 
-- Spring Boot 3.0.X
-- spring-security-oauth2-authorization-server 1.0.X
-- jdk >= 17
-
+- 新版本：[spring-boot-authorization-server](https://github.com/panxiaochao/spring-boot-authorization-server)
